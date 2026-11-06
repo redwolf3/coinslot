@@ -360,3 +360,67 @@ func TestRememberTitleBoundedAndResetOnPidReuse(t *testing.T) {
 		t.Fatalf("after pid reuse: %+v", got)
 	}
 }
+
+// Copilot review r4496313725: a title-identified process that exits at a run
+// boundary has no exit diff; the new run's snapshot must expire its titles so an
+// unrelated process reusing the pid (same exe) does not inherit them.
+func TestTitlesExpireForExitAtRunBoundary(t *testing.T) {
+	c, p, s, now := newTest(t)
+	p.procs = []Proc{{1, "explorer.exe"}, {9, "javaw.exe"}}
+	p.fg = Foreground{PID: 9, Exe: "javaw.exe", Title: "Minecraft 1.21.4"}
+	c.Tick()
+	s.fail = true // write failure: next tick starts a new run
+	p.fg = Foreground{PID: 1, Exe: "explorer.exe"}
+	*now = now.Add(5 * time.Second)
+	c.Tick()
+	s.fail = false
+	p.procs = []Proc{{1, "explorer.exe"}} // Minecraft exited at the boundary
+	*now = now.Add(5 * time.Second)
+	c.Tick() // write_recovery run; snapshot confirms pid 9 is gone
+	if _, ok := c.titles[9]; ok {
+		t.Fatal("titles of an exited process survived the run boundary")
+	}
+	// An unrelated javaw.exe reuses pid 9; across the next boundary its snapshot
+	// must not carry Minecraft titles.
+	p.procs = []Proc{{1, "explorer.exe"}, {9, "javaw.exe"}}
+	*now = now.Add(5 * time.Second)
+	c.Tick()
+	*now = time.Date(2026, 11, 7, 0, 0, 0, 0, now.Location()) // new_day run
+	c.Tick()
+	starts := s.ofType("start")
+	last := starts[len(starts)-1]
+	if last["reason"] != "new_day" {
+		t.Fatalf("expected a new_day run, got %v", last)
+	}
+	for _, r := range s.ofType("proc") {
+		if r["run"] == last["run"] && r["exe"] == "javaw.exe" && r["titles"] != nil {
+			t.Fatalf("reused pid inherited titles: %v", r)
+		}
+	}
+}
+
+// The expiry must not drop evidence for a process seen in the foreground before
+// any snapshot listed it (Copilot review 5805169230).
+func TestTitlesKeptForProcessNotYetInBaseline(t *testing.T) {
+	c, p, s, now := newTest(t)
+	p.procs = []Proc{{1, "explorer.exe"}}
+	c.Tick()
+	s.fail = true
+	p.fg = Foreground{PID: 9, Exe: "javaw.exe", Title: "Minecraft 1.21.4"} // not in any snapshot yet
+	*now = now.Add(5 * time.Second)
+	c.Tick()
+	s.fail = false
+	p.procs = []Proc{{1, "explorer.exe"}, {9, "javaw.exe"}}
+	*now = now.Add(5 * time.Second)
+	c.Tick()
+	newRun := s.ofType("start")[1]["run"]
+	for _, r := range s.ofType("proc") {
+		if r["run"] == newRun && r["exe"] == "javaw.exe" {
+			if !reflect.DeepEqual(r["titles"], []any{"Minecraft 1.21.4"}) {
+				t.Fatalf("titles = %v", r["titles"])
+			}
+			return
+		}
+	}
+	t.Fatal("javaw.exe missing from the new run's snapshot")
+}

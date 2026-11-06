@@ -65,9 +65,13 @@ type Collector struct {
 	seq      uint64
 	prevTick time.Time
 	procs    map[procKey]struct{} // nil until first tick
-	lastErr  map[string]string
-	day      string // local date of the current run's start
-	broken   bool   // a write failed in this run; the next tick starts a new run
+	// prevProcs is the last baseline of the previous run(s), kept across begin()
+	// so the new run's first snapshot can still expire titles of processes that
+	// exited at the boundary.
+	prevProcs map[procKey]struct{}
+	lastErr   map[string]string
+	day       string // local date of the current run's start
+	broken    bool   // a write failed in this run; the next tick starts a new run
 	// titles holds the distinct foreground window titles seen per running pid. It
 	// survives run changes so a new run's "present" snapshot can carry them as raw
 	// evidence (e.g. javaw.exe that showed a Minecraft title).
@@ -147,6 +151,9 @@ func (c *Collector) begin(ts time.Time, reason string) {
 	c.run = newRunID()
 	c.seq = 0
 	c.prevTick = time.Time{}
+	if c.procs != nil {
+		c.prevProcs = c.procs
+	}
 	c.procs = nil
 	c.lastErr = map[string]string{}
 	c.day = ts.Format("2006-01-02")
@@ -291,6 +298,20 @@ func (c *Collector) diffProcs(procs []Proc, ts time.Time) {
 			}
 		}
 		c.emit(rec, ts)
+	}
+	if first {
+		// Processes known in the previous run's baseline but absent now exited at
+		// the run boundary, with no exit diff: expire their titles so a later
+		// process reusing the pid can't inherit them. Titles for pids never in a
+		// baseline (seen in the foreground before any snapshot) are kept.
+		for k := range c.prevProcs {
+			if _, ok := cur[k]; !ok {
+				if t, ok := c.titles[k.pid]; ok && t.sameProcess(k.exe) {
+					delete(c.titles, k.pid)
+				}
+			}
+		}
+		c.prevProcs = nil
 	}
 	c.procs = cur
 }
