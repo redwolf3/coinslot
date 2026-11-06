@@ -28,11 +28,16 @@ func summaryCmd(args []string, cfgPath, logDir string, stdout, stderr io.Writer)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	if *date != "" {
+		if _, err := time.Parse("2006-01-02", *date); err != nil {
+			return fmt.Errorf("-date must be YYYY-MM-DD: %q", *date)
+		}
+	}
 	cfg, _, err := config.Load(cfgPath)
 	if err != nil {
 		return err
 	}
-	all, err := loadLogs(fs.Args(), logDir, stderr)
+	all, err := loadLogs(fs.Args(), logDir, *date, stderr)
 	if err != nil {
 		return err
 	}
@@ -63,13 +68,20 @@ func summaryCmd(args []string, cfgPath, logDir string, stdout, stderr io.Writer)
 	return err
 }
 
-// loadLogs parses the given log files/directories (default: today's log in
-// logDir), in order, reporting malformed lines to stderr.
-func loadLogs(paths []string, logDir string, stderr io.Writer) ([]activity.Event, error) {
+// loadLogs parses the given log files/directories, in order, reporting malformed
+// lines to stderr. With no paths it reads one day's log in logDir: date, or today.
+// With date set, directories contribute only that day's file: each daily file is
+// self-contained (a new run starts at local midnight), so no other day is needed.
+// Files named explicitly are always read.
+func loadLogs(paths []string, logDir, date string, stderr io.Writer) ([]activity.Event, error) {
 	if len(paths) == 0 {
-		paths = []string{filepath.Join(logDir, time.Now().Format("2006-01-02")+".jsonl")}
+		day := date
+		if day == "" {
+			day = time.Now().Format("2006-01-02")
+		}
+		paths = []string{filepath.Join(logDir, day+".jsonl")}
 	}
-	files, err := expand(paths)
+	files, err := expand(paths, date)
 	if err != nil {
 		return nil, err
 	}
@@ -92,8 +104,8 @@ func loadLogs(paths []string, logDir string, stderr io.Writer) ([]activity.Event
 }
 
 // expand turns directories into their *.jsonl files, sorted so each day's
-// records stay in order.
-func expand(paths []string) ([]string, error) {
+// records stay in order. A non-empty date limits directories to <date>.jsonl.
+func expand(paths []string, date string) ([]string, error) {
 	var out []string
 	for _, p := range paths {
 		fi, err := os.Stat(p)
@@ -104,7 +116,11 @@ func expand(paths []string) ([]string, error) {
 			out = append(out, p)
 			continue
 		}
-		m, err := filepath.Glob(filepath.Join(p, "*.jsonl"))
+		pattern := "*.jsonl"
+		if date != "" {
+			pattern = date + ".jsonl"
+		}
+		m, err := filepath.Glob(filepath.Join(p, pattern))
 		if err != nil {
 			return nil, err
 		}

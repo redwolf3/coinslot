@@ -112,7 +112,8 @@ more than ~10s. Intervals that cross local midnight are split between the two da
 
 **Daily summary** per (local date, SID): observed, present, active play per game (with first/last
 active time), open-not-playing per game and in total (no double count), allowed per app.
-`coinslot summary` prints it as text or `-json`.
+`coinslot summary` prints it as text or `-json`. With `-date D`, a log directory contributes
+only `D.jsonl`: daily files are self-contained, because a new run starts at local midnight.
 
 ## Records (JSONL, schema v1)
 
