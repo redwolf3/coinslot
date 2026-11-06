@@ -14,7 +14,7 @@ pure core turns them into a daily summary per child. No blocking, budgets, or to
 
 | Path        | What                                                         |
 |-------------|--------------------------------------------------------------|
-| `core/`     | Platform-independent logic: config, record schema, (soon) classifier, counter, summaries |
+| `core/`     | Platform-independent logic: config, record schema, classifier, active-play counter, daily summary |
 | `windows/`  | Windows collector (`coinslot.exe` / `coinslotw.exe`), Win32 probe, packaging and install scripts |
 | `config/`   | Example config mapping process names to metered/allowed, player/launcher |
 | `docs/`     | Design notes and run instructions                            |
@@ -28,8 +28,9 @@ go test ./...
 windows/scripts/package.sh   # -> dist/coinslot/: both exes, config.json, install scripts
 ```
 
-See [docs/design.md](docs/design.md) for the design and record schema, and
-[docs/windows-setup.md](docs/windows-setup.md) to install and collect data.
+See [docs/design.md](docs/design.md) for the design and record schema,
+[docs/windows-setup.md](docs/windows-setup.md) to install, and
+[docs/evening-test.md](docs/evening-test.md) to collect an evening of data and check it.
 
 ## License
 

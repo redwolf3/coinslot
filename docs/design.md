@@ -15,9 +15,11 @@ go.mod                          module github.com/redwolf3/coinslot
 core/
   config/                       config schema, validation, exe/title -> rule matching
   record/                       JSONL record types (schema v1)
-  (next) classify/ count/ summary/
+  activity/                     parse logs, replay process state, classify, credit intervals
+  summary/                      daily summary per child (date, SID)
+  internal/synth/               synthetic log builder for tests
 windows/
-  cmd/coinslot/                 entrypoint: run | once | procs
+  cmd/coinslot/                 entrypoint: run | once | procs | summary
   collector/                    platform-neutral loop behind a Probe interface (tested with a fake)
   internal/win32/               the only Win32 code: foreground, idle, session processes
   scripts/                      install/uninstall scheduled task (PowerShell)
@@ -68,6 +70,33 @@ are logged, a day can be re-classified after correcting the config.
 - Rules are evaluated in order; first match wins. Exe and title matching are case-insensitive.
 - `title_contains` rules can only match the foreground window (background processes have
   no title in the process list), so they never set `player_running` on their own.
+
+## Core: classification and counting
+
+The core re-classifies every sample from **raw facts** with the *current* config. It ignores
+the collector's derived fields (`fg_class`, `is_metered`, `player_running`), so fixing a
+process name in the config fixes past days too.
+
+Per sample, with the run's process set rebuilt from `proc` events:
+
+| state | condition |
+|-------|-----------|
+| present | `console_active` and `idle_s <= idle_threshold_seconds` |
+| active play (app A) | present, and foreground matches A's metered **player** rule |
+| allowed (app B) | present, and foreground matches an allowed rule |
+| open, not playing (app A) | any of A's player/launcher processes running, or A in foreground, and A not active |
+
+These are not exclusive. Roblox open behind Duolingo counts as Duolingo allowed time and
+Roblox open-not-playing time.
+
+**Credit:** each sample credits `min(dt_s, 2 × interval)` seconds to the state it saw, covering
+the time since the previous sample in the same run. The first sample of a run credits 0.
+Sleep/hibernate, a stalled collector, or a killed-and-restarted collector therefore never credit
+more than ~10s. Intervals that cross local midnight are split between the two days.
+
+**Daily summary** per (local date, SID): observed, present, active play per game (with first/last
+active time), open-not-playing per game and in total (no double count), allowed per app.
+`coinslot summary` prints it as text or `-json`.
 
 ## Records (JSONL, schema v1)
 
