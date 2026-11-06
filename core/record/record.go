@@ -39,8 +39,16 @@ type Header struct {
 	SID  string `json:"sid"`
 }
 
+// Start.Reason values.
+const (
+	StartStartup       = "startup"        // collector process started
+	StartNewDay        = "new_day"        // local date changed; each daily file is self-contained
+	StartWriteRecovery = "write_recovery" // a previous write failed; process state re-snapshotted
+)
+
 type Start struct {
 	Header
+	Reason         string `json:"reason,omitempty"`
 	Host           string `json:"host"`
 	SessionID      uint32 `json:"session_id"`
 	PID            int    `json:"pid"`

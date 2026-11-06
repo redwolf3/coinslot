@@ -47,6 +47,12 @@ Every `sample_interval_seconds` (default 5) the collector:
 It is single-instance per session (`Local\` named mutex). Logs go to
 `%LOCALAPPDATA%\Coinslot\logs\YYYY-MM-DD.jsonl` (local date), opened in append mode per write.
 
+A **run** (one `run` id) is a self-contained stretch of log: a `start` record, a full `present`
+process snapshot, then diffs and samples. The collector starts a new run when the process
+starts, when the local date changes (so each daily file replays on its own), and after
+any failed write (the logged process state may have lost an event, so it is re-snapshotted).
+The first sample of a run credits 0s, so a run change costs at most one interval.
+
 The collector does **not** decide what counts as active play. It records raw facts plus
 convenience fields; the core decides. Because raw facts (exe, path, title, process events)
 are logged, a day can be re-classified after correcting the config.
@@ -82,10 +88,13 @@ Per sample, with the run's process set rebuilt from `proc` events:
 
 | state | condition |
 |-------|-----------|
-| present | `console_active` and `idle_s <= idle_threshold_seconds` |
+| present | `console_active` and `idle_s` known and `<= idle_threshold_seconds` |
 | active play (app A) | present, and foreground matches A's metered **player** rule |
 | allowed (app B) | present, and foreground matches an allowed rule |
 | open, not playing (app A) | any of A's player/launcher processes running, or A in foreground, and A not active |
+
+A process identified only by a title-qualified rule (e.g. `javaw.exe` + "Minecraft") is
+remembered by pid once seen in the foreground with that title, and counts as open until it exits.
 
 App usage (foreground time including passive use such as videos) is a separate, planned
 measure; see [roadmap.md](roadmap.md#product-model-two-measures). The v1 `allowed` figure
@@ -129,10 +138,10 @@ Every line has a common header:
 | `is_metered` | foreground matches a metered rule (player or launcher) |
 | `player_running` | any metered player process is running in this session |
 | `players_running` | app ids of running metered players |
-| `idle_s` | seconds since last keyboard/mouse input in this session |
+| `idle_s` | seconds since last keyboard/mouse input in this session; **omitted** when the read failed (treated as not present) |
 
 `proc`: `event` (`present` at startup, then `start`/`exit`), `pid`, `exe`, `path`.
-`start`: host, session id, collector version, config path + SHA-256, interval, idle threshold.
+`start`: `reason` (`startup` \| `new_day` \| `write_recovery`), host, session id, collector version, config path + SHA-256, interval, idle threshold.
 `error`: `op`, `msg` (deduplicated: logged when the message for an op changes).
 
 Durations are computed by the core from `dt_s` (capped, to ignore sleep/hibernate gaps),

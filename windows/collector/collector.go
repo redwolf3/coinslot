@@ -65,6 +65,8 @@ type Collector struct {
 	prevTick time.Time
 	procs    map[procKey]struct{} // nil until first tick
 	lastErr  map[string]string
+	day      string // local date of the current run's start
+	broken   bool   // a write failed in this run; the next tick starts a new run
 }
 
 type procKey struct {
@@ -87,29 +89,52 @@ func (c *Collector) header(typ string, ts time.Time) record.Header {
 	}
 }
 
+// emit writes a record. A failed write cannot be logged to the same sink, and
+// the process diff has already moved on, so the run's process state in the log is
+// now unreliable: mark the run broken so the next tick starts a new run with a
+// fresh process snapshot.
 func (c *Collector) emit(rec any, ts time.Time) {
-	// A failed write cannot be logged to the same sink; drop it and keep sampling.
-	_ = c.Sink.Write(rec, ts)
+	if err := c.Sink.Write(rec, ts); err != nil {
+		c.broken = true
+	}
 }
 
-// Start writes the start record. Call once before Tick.
-func (c *Collector) Start() {
-	if c.run == "" {
-		c.run = newRunID()
-	}
+// Start begins the first run. Tick starts one automatically if needed.
+func (c *Collector) Start() { c.begin(c.now(), record.StartStartup) }
+
+// begin starts a new run: new run id, fresh sequence, empty process state (so
+// the next diff logs a full "present" snapshot), and a start record. A run never
+// spans two local dates or a failed write, so every daily log file and every run
+// can be replayed on its own.
+func (c *Collector) begin(ts time.Time, reason string) {
+	c.run = newRunID()
+	c.seq = 0
+	c.prevTick = time.Time{}
+	c.procs = nil
 	c.lastErr = map[string]string{}
-	ts := c.now()
+	c.day = ts.Format("2006-01-02")
+	c.broken = false
 	c.emit(record.Start{
-		Header: c.header(record.TypeStart, ts),
-		Host:   c.ID.Host, SessionID: c.ID.SessionID, PID: c.ID.PID, Version: c.ID.Version,
+		Header: c.header(record.TypeStart, ts), Reason: reason,
+		Host: c.ID.Host, SessionID: c.ID.SessionID, PID: c.ID.PID, Version: c.ID.Version,
 		ConfigPath: c.ConfigPath, ConfigSHA256: c.ConfigSHA,
 		IntervalS: c.Cfg.SampleIntervalSeconds, IdleThresholdS: c.Cfg.IdleThresholdSeconds,
 	}, ts)
 }
 
 // Tick takes one sample: process diff events first, then the sample record.
+// It starts a new run first when there is none yet, the local date changed, or a
+// write failed in the current run.
 func (c *Collector) Tick() {
 	ts := c.now()
+	switch {
+	case c.day == "":
+		c.begin(ts, record.StartStartup)
+	case c.broken:
+		c.begin(ts, record.StartWriteRecovery)
+	case ts.Format("2006-01-02") != c.day:
+		c.begin(ts, record.StartNewDay)
+	}
 	var dt float64
 	if !c.prevTick.IsZero() {
 		dt = ts.Sub(c.prevTick).Seconds() // monotonic when Now is time.Now

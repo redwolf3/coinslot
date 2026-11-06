@@ -28,9 +28,15 @@ func (f *fakeProbe) SessionProcesses() ([]Proc, error) { return f.procs, f.procs
 func (f *fakeProbe) ProcessPath(pid uint32) string     { return `C:\fake\` + string(rune('a'+pid%26)) }
 func (f *fakeProbe) ConsoleActive() bool               { return f.console }
 
-type memSink struct{ recs []map[string]any }
+type memSink struct {
+	recs []map[string]any
+	fail bool // reject writes, as a full disk or locked file would
+}
 
 func (m *memSink) Write(rec any, _ time.Time) error {
+	if m.fail {
+		return errors.New("disk full")
+	}
 	b, err := json.Marshal(rec)
 	if err != nil {
 		return err
@@ -236,5 +242,75 @@ func TestFileSinkRotatesByLocalDate(t *testing.T) {
 	}
 	if n := count(sink.Path(d2)); n != 1 {
 		t.Fatalf("day2 lines = %d", n)
+	}
+}
+
+func runsOf(s *memSink) []string {
+	var runs []string
+	for _, r := range s.ofType("start") {
+		runs = append(runs, r["reason"].(string)+":"+r["run"].(string))
+	}
+	return runs
+}
+
+// Copilot review r4496048739: after a failed write the logged process state is
+// unreliable, so the next tick must start a new run with a fresh snapshot.
+func TestWriteFailureStartsNewRunWithSnapshot(t *testing.T) {
+	c, p, s, now := newTest(t)
+	p.procs = []Proc{{1, "explorer.exe"}}
+	c.Tick()
+	s.fail = true // the Roblox start event is lost
+	p.procs = []Proc{{1, "explorer.exe"}, {3, "RobloxPlayerBeta.exe"}}
+	*now = now.Add(5 * time.Second)
+	c.Tick()
+	s.fail = false
+	*now = now.Add(5 * time.Second)
+	c.Tick()
+
+	starts := s.ofType("start")
+	if len(starts) != 2 || starts[0]["reason"] != "startup" || starts[1]["reason"] != "write_recovery" ||
+		starts[0]["run"] == starts[1]["run"] {
+		t.Fatalf("starts: %v", runsOf(s))
+	}
+	newRun := starts[1]["run"]
+	var present []string
+	for _, r := range s.ofType("proc") {
+		if r["run"] == newRun {
+			if r["event"] != "present" {
+				t.Fatalf("new run should begin with a snapshot, got %v", r)
+			}
+			present = append(present, r["exe"].(string))
+		}
+	}
+	if !reflect.DeepEqual(present, []string{"explorer.exe", "RobloxPlayerBeta.exe"}) {
+		t.Fatalf("snapshot = %v", present)
+	}
+	last := s.ofType("sample")[len(s.ofType("sample"))-1]
+	if last["run"] != newRun || last["seq"] != float64(4) || last["dt_s"] != float64(0) {
+		t.Fatalf("first sample of new run: %v", last)
+	}
+}
+
+// Copilot review r4496048618: each daily log must be replayable on its own, so a
+// run never spans midnight.
+func TestNewRunAtLocalMidnight(t *testing.T) {
+	c, p, s, now := newTest(t)
+	*now = time.Date(2026, 11, 6, 23, 59, 55, 0, now.Location())
+	p.procs = []Proc{{3, "RobloxPlayerBeta.exe"}}
+	c.Tick()
+	*now = now.Add(5 * time.Second) // 00:00:00 next day
+	c.Tick()
+	starts := s.ofType("start")
+	if len(starts) != 2 || starts[1]["reason"] != "new_day" || starts[1]["ts"] != "2026-11-07T00:00:00.000-05:00" {
+		t.Fatalf("starts: %v", starts)
+	}
+	n := 0
+	for _, r := range s.ofType("proc") {
+		if r["run"] == starts[1]["run"] && r["event"] == "present" && r["exe"] == "RobloxPlayerBeta.exe" {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Fatal("new day's run must re-snapshot running processes")
 	}
 }
