@@ -243,3 +243,48 @@ func TestForegroundBeforeSnapshotEndToEnd(t *testing.T) {
 		t.Fatalf("minecraft open = %v, want 1", got)
 	}
 }
+
+// Issue #2: with -date, a log directory contributes only that day's file.
+func TestSummaryDateReadsOnlyThatDaysFile(t *testing.T) {
+	sc := newTitled(t, "Minecraft", time.Date(2026, 11, 6, 18, 0, 0, 0, time.Local))
+	sc.probe.procs = []collector.Proc{{PID: 9, Exe: "javaw.exe"}}
+	sc.probe.fg = collector.Foreground{PID: 9, Exe: "javaw.exe", Title: "Minecraft 1.21.4"}
+	for day := 6; day <= 8; day++ {
+		sc.now = time.Date(2026, 11, day, 18, 0, 0, 0, time.Local)
+		sc.tick(1 + 12*day) // day N: N minutes of play
+	}
+	// Corrupt the other days: if they were read, stderr would report it.
+	for _, d := range []string{"2026-11-06", "2026-11-08"} {
+		f, err := os.OpenFile(filepath.Join(sc.logDir, d+".jsonl"), os.O_APPEND|os.O_WRONLY, 0o644)
+		if err != nil {
+			t.Fatal(err)
+		}
+		f.WriteString("not json\n")
+		f.Close()
+	}
+
+	for name, args := range map[string][]string{
+		"directory":         {"-json", "-date", "2026-11-07", sc.logDir},
+		"default (no path)": {"-json", "-date", "2026-11-07"},
+	} {
+		var out, errb bytes.Buffer
+		if err := summaryCmd(args, sc.cfg, sc.logDir, &out, &errb); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if errb.Len() != 0 {
+			t.Fatalf("%s: other days' files were read: %s", name, errb.String())
+		}
+		var days []summary.Day
+		if err := json.Unmarshal(out.Bytes(), &days); err != nil {
+			t.Fatal(err)
+		}
+		if len(days) != 1 || days[0].Date != "2026-11-07" || days[0].ActivePlayMin != 7 {
+			t.Fatalf("%s: %s", name, out.String())
+		}
+	}
+
+	var out, errb bytes.Buffer
+	if err := summaryCmd([]string{"-date", "2026-11-*", sc.logDir}, sc.cfg, sc.logDir, &out, &errb); err == nil {
+		t.Fatal("malformed -date must be rejected")
+	}
+}

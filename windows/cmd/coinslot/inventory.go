@@ -24,7 +24,7 @@ func inventoryCmd(args []string, cfgPath, logDir string, stdout, stderr io.Write
 	if err != nil {
 		return err
 	}
-	evs, err := loadLogs(fs.Args(), logDir, stderr)
+	evs, err := loadLogs(fs.Args(), logDir, "", stderr)
 	if err != nil {
 		return err
 	}
