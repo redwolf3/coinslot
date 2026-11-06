@@ -17,7 +17,7 @@ pure core turns them into a daily summary per child. No blocking, budgets, or to
 | `core/`     | Platform-independent logic: config, record schema, classifier, active-play counter, daily summary |
 | `windows/`  | Windows collector (`coinslot.exe` / `coinslotw.exe`), Win32 probe, packaging and install scripts |
 | `config/`   | Example config mapping process names to metered/allowed, player/launcher |
-| `docs/`     | Design notes and run instructions                            |
+| `docs/`     | Design, roadmap, ADRs, analysis, guidelines, operator guides (index: `docs/README.md`) |
 | `ios/`      | Placeholder (later)                                          |
 | `service/`  | Placeholder (later)                                          |
 
@@ -32,6 +32,9 @@ See [docs/design.md](docs/design.md) for the design and record schema,
 [docs/windows-setup.md](docs/windows-setup.md) to install, and
 [docs/evening-test.md](docs/evening-test.md) to collect an evening of data and check it.
 Planned post-MVP work is in [docs/roadmap.md](docs/roadmap.md).
+Decisions are recorded in [docs/adr/](docs/adr/), research in [docs/analysis/](docs/analysis/),
+and development guidelines in [docs/guidelines/](docs/guidelines/development.md). AI agents start at
+[AGENTS.md](AGENTS.md).
 
 ## License
 
