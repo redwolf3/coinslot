@@ -68,7 +68,7 @@ Planned for Sunday 2026-11-08. Setup is about 10 minutes, then notes during the 
 ### 6a. Get the build
 
 - [ ] Download `coinslot-windows-amd64` from the latest successful CI run (GitHub → Actions →
-      `ci` → run on this branch → Artifacts; requires being signed in to GitHub) and extract it.
+      `ci` → latest run for the PR → Artifacts; requires being signed in to GitHub) and extract it.
       Alternative: install Go and Git Bash, then run `windows/scripts/package.sh`.
 - [ ] Unblock the extracted files. They are unsigned and downloaded, so Windows marks them:
       `Get-ChildItem <folder> -Recurse | Unblock-File`. If Defender/SmartScreen still blocks

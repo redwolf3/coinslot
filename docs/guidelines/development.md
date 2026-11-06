@@ -12,7 +12,8 @@
   ```
 - Commit subject: `<area>: <what changed>`, where area is `core`, `collector`, `windows`,
   `cmd`, `docs`, `ci`, or `config`. The body explains *why* when it isn't obvious.
-- CI (`.github/workflows/ci.yml`) runs the same checks on Linux, plus a Windows job that runs
+- CI (`.github/workflows/ci.yml`) runs on pull requests and on pushes to `main` (not on other
+  branch pushes, so a PR doesn't run twice). It runs the same checks on Linux, plus a Windows job that runs
   the real binary (`procs`, `once`, a short `run`, `summary`) and uploads the deployable build.
   That Windows job is the only automated check of the Win32 code.
 - Ask the owner before a large design change; record the outcome as an ADR.
