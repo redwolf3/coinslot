@@ -152,11 +152,26 @@ func Replay(evs []Event, cfg *config.Config, opt Options) []Interval {
 				ConsoleActive: s.ConsoleActive, FgPID: s.FgPID, FgExe: s.FgExe,
 				FgTitle: s.FgTitle, IdleS: s.IdleS, ProcExes: exes,
 			})
-			out = append(out, Interval{
-				User: s.User, SID: s.SID, Run: s.Run, End: end,
-				Day: end.Format("2006-01-02"), Seconds: credit, State: st,
-			})
+			iv := Interval{User: s.User, SID: s.SID, Run: s.Run, End: end, Seconds: credit, State: st}
+			out = append(out, splitAtMidnight(iv)...)
 		}
 	}
 	return out
+}
+
+// splitAtMidnight sets Day and splits an interval that starts on the previous
+// local day, so each day gets exactly its own seconds.
+func splitAtMidnight(iv Interval) []Interval {
+	iv.Day = iv.End.Format("2006-01-02")
+	start := iv.End.Add(-time.Duration(iv.Seconds * float64(time.Second)))
+	midnight := time.Date(iv.End.Year(), iv.End.Month(), iv.End.Day(), 0, 0, 0, 0, iv.End.Location())
+	if !start.Before(midnight) {
+		return []Interval{iv}
+	}
+	before := iv
+	before.End = midnight
+	before.Day = start.Format("2006-01-02")
+	before.Seconds = midnight.Sub(start).Seconds()
+	iv.Seconds -= before.Seconds
+	return []Interval{before, iv}
 }
