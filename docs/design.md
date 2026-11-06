@@ -86,7 +86,11 @@ Per sample, with the run's process set rebuilt from `proc` events:
 | allowed (app B) | present, and foreground matches an allowed rule |
 | open, not playing (app A) | any of A's player/launcher processes running, or A in foreground, and A not active |
 
-These are not exclusive. Roblox open behind Duolingo counts as Duolingo allowed time and
+App usage (foreground time including passive use such as videos) is a separate, planned
+measure; see [roadmap.md](roadmap.md#product-model-two-measures). The v1 `allowed` figure
+requires input and will be superseded by it.
+
+These states are not exclusive. Roblox open behind Duolingo counts as Duolingo allowed time and
 Roblox open-not-playing time.
 
 **Credit:** each sample credits `min(dt_s, 2 × interval)` seconds to the state it saw, covering

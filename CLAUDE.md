@@ -9,6 +9,13 @@ Per-user "active-use" screen time meter. Windows first; iOS and a central servic
 - Goal: reliably measure, per child account, active play time per metered game,
   separate from allowed apps and from time a game is merely open (launcher, download, update).
 
+## Two measures (product model)
+
+The final product tracks **app usage** (foreground time, including passive use such as
+videos) and **active gameplay** (the stricter rule below) separately; see `docs/roadmap.md`.
+The MVP builds active gameplay only, focused on Roblox and Minecraft. Keep logging the raw
+foreground facts every sample so app usage can be computed from existing logs later.
+
 ## Active-play rule
 
 A second counts as active play only when all hold:
