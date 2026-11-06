@@ -136,3 +136,15 @@ func TestDurAndClip(t *testing.T) {
 		t.Errorf("clip: %q", got)
 	}
 }
+
+// Copilot review r4496048547: From/To must not depend on input order.
+func TestRangeIndependentOfOrder(t *testing.T) {
+	late := synth.New(`PC\kid1`, "S-1", "a", t0).Start()
+	late.Samples(1+12*60, synth.Fg{Exe: "explorer.exe"}) // 18:00-19:00
+	early := synth.New(`PC\kid2`, "S-2", "b", t0.Add(-2*time.Hour)).Start()
+	early.Samples(1+12*10, synth.Fg{Exe: "explorer.exe"}) // 16:00-16:10
+	r := build(t, wrongCfg, late.Bytes(), early.Bytes())
+	if r.From != "2026-11-08T16:00:00.000-05:00" || r.To != "2026-11-08T19:00:00.000-05:00" {
+		t.Fatalf("range %s .. %s", r.From, r.To)
+	}
+}

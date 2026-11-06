@@ -120,9 +120,19 @@ func Build(evs []activity.Event, cfg *config.Config) Report {
 		rep.Users = append(rep.Users, u)
 	}
 	sort.Strings(rep.Users)
-	if len(ivs) > 0 {
-		rep.From = ivs[0].End.Format(record.TimeLayout)
-		rep.To = ivs[len(ivs)-1].End.Format(record.TimeLayout)
+	// Logs from several files or users are not globally ordered; use min/max.
+	var from, to time.Time
+	for _, iv := range ivs {
+		if from.IsZero() || iv.End.Before(from) {
+			from = iv.End
+		}
+		if iv.End.After(to) {
+			to = iv.End
+		}
+	}
+	if !from.IsZero() {
+		rep.From = from.Format(record.TimeLayout)
+		rep.To = to.Format(record.TimeLayout)
 	}
 	return rep
 }
