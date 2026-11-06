@@ -94,6 +94,7 @@ and on the real PC.
 ## Working rules
 
 - Small, shippable commits. Each commit builds and passes all checks above.
+- Merge pull requests with **squash and merge**.
 - Ask the owner before any large design change. Record accepted decisions as an ADR.
 - Write findings from research or log analysis to `docs/analysis/` so they are not redone.
 - Question requirements that don't make sense or don't follow standards. Don't silently comply.

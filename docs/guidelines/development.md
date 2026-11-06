@@ -2,7 +2,8 @@
 
 ## Workflow
 
-- Work on a branch; `main` is updated through pull requests.
+- Work on a branch; `main` is updated through pull requests, merged with **squash and merge**.
+  Write the PR title as the squash commit subject (`<area>: <what changed>`).
 - **Small, shippable commits.** Each commit builds and passes:
   ```sh
   gofmt -l .                                     # prints nothing
