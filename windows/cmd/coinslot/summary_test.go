@@ -88,4 +88,13 @@ func TestCollectorToSummary(t *testing.T) {
 	if !strings.Contains(out.String(), "ACTIVE PLAY") {
 		t.Fatalf("text output:\n%s", out.String())
 	}
+	out.Reset()
+	if err := inventoryCmd([]string{logDir}, cfgPath, logDir, &out, &errb); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"RobloxPlayerBeta.exe", "roblox/metered/player", `"Roblox"`, "msedge.exe", `"Duolingo"`} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("inventory missing %q:\n%s", want, out.String())
+		}
+	}
 }

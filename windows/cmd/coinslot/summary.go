@@ -32,29 +32,9 @@ func summaryCmd(args []string, cfgPath, logDir string, stdout, stderr io.Writer)
 	if err != nil {
 		return err
 	}
-	paths := fs.Args()
-	if len(paths) == 0 {
-		paths = []string{filepath.Join(logDir, time.Now().Format("2006-01-02")+".jsonl")}
-	}
-	files, err := expand(paths)
+	all, err := loadLogs(fs.Args(), logDir, stderr)
 	if err != nil {
 		return err
-	}
-
-	var all []activity.Event
-	for _, f := range files {
-		b, err := os.ReadFile(f)
-		if err != nil {
-			return err
-		}
-		evs, st, err := activity.Parse(bytes.NewReader(b))
-		if err != nil {
-			return fmt.Errorf("%s: %w", f, err)
-		}
-		if st.Malformed > 0 {
-			fmt.Fprintf(stderr, "%s: %d malformed line(s) skipped\n", f, st.Malformed)
-		}
-		all = append(all, evs...)
 	}
 
 	days := summary.Summarize(activity.Replay(all, cfg, activity.Options{IdleThresholdS: *idle}))
@@ -81,6 +61,34 @@ func summaryCmd(args []string, cfgPath, logDir string, stdout, stderr io.Writer)
 	}
 	_, err = io.WriteString(stdout, summary.Text(days))
 	return err
+}
+
+// loadLogs parses the given log files/directories (default: today's log in
+// logDir), in order, reporting malformed lines to stderr.
+func loadLogs(paths []string, logDir string, stderr io.Writer) ([]activity.Event, error) {
+	if len(paths) == 0 {
+		paths = []string{filepath.Join(logDir, time.Now().Format("2006-01-02")+".jsonl")}
+	}
+	files, err := expand(paths)
+	if err != nil {
+		return nil, err
+	}
+	var all []activity.Event
+	for _, f := range files {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			return nil, err
+		}
+		evs, st, err := activity.Parse(bytes.NewReader(b))
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", f, err)
+		}
+		if st.Malformed > 0 {
+			fmt.Fprintf(stderr, "%s: %d malformed line(s) skipped\n", f, st.Malformed)
+		}
+		all = append(all, evs...)
+	}
+	return all, nil
 }
 
 // expand turns directories into their *.jsonl files, sorted so each day's

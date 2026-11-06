@@ -5,6 +5,8 @@
 //	coinslot procs   list processes in this session with their config classification
 //	coinslot summary [-json] [-date YYYY-MM-DD] [-idle S] [log files or dirs...]
 //	                 daily summary per child (default: today's log for this user)
+//	coinslot inventory [-json] [-top N] [log files or dirs...]
+//	                 foreground programs and started processes, to find real exe names
 //	coinslot version
 //
 // Build twice: coinslot.exe (console, for diagnostics) and coinslotw.exe
@@ -37,7 +39,7 @@ func main() {
 	cfgPath := fs.String("config", defaultConfigPath(), "path to config.json")
 	logDir := fs.String("logdir", defaultLogDir(), "directory for daily JSONL logs")
 	fs.Usage = func() {
-		fmt.Fprintln(fs.Output(), "usage: coinslot [flags] [run|once|procs|summary|version]")
+		fmt.Fprintln(fs.Output(), "usage: coinslot [flags] [run|once|procs|summary|inventory|version]")
 		fs.PrintDefaults()
 	}
 	_ = fs.Parse(os.Args[1:])
@@ -54,6 +56,8 @@ func main() {
 		err = once(*cfgPath)
 	case "procs":
 		err = procs(*cfgPath)
+	case "inventory":
+		err = inventoryCmd(fs.Args()[1:], *cfgPath, *logDir, os.Stdout, os.Stderr)
 	case "summary":
 		err = summaryCmd(fs.Args()[1:], *cfgPath, *logDir, os.Stdout, os.Stderr)
 	case "version":
