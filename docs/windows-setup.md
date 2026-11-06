@@ -9,6 +9,13 @@ Either download the `coinslot-windows-amd64` artifact from the latest CI run on 
 windows/scripts/package.sh      # -> dist/coinslot/
 ```
 
+The binaries are unsigned. After extracting a downloaded zip, remove the "downloaded from the
+internet" mark so SmartScreen doesn't block them:
+
+```powershell
+Get-ChildItem .\coinslot-windows-amd64 -Recurse | Unblock-File
+```
+
 ## 2. Inventory process names (do this before trusting any numbers)
 
 The rules in `config.json` are **unverified candidates**. Confirm them on the real PC.

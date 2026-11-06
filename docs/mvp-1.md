@@ -55,18 +55,56 @@ about 1–2 minutes per hour of play, for both kids.
 - [x] Setup and inventory guide ([windows-setup.md](windows-setup.md))
 - [x] Evening data collection and comparison guide ([evening-test.md](evening-test.md))
 
-## 6. Validation on the family PC (owner)
+## 6. Manual tasks: owner, on the family PC
 
-- [ ] Inventory process names; correct `config.json` and remove `UNVERIFIED` notes
-      (Roblox, Minecraft, Duolingo; Among Us optional)
-- [ ] Check whether the Roblox app home screen runs as `RobloxPlayerBeta.exe`
-      ([analysis](analysis/2026-11-06-game-state-signals.md#to-verify-on-the-pc))
-- [ ] Note the Minecraft edition (Java or Bedrock)
-- [ ] `install.ps1` runs cleanly; the collector starts at each kid's logon
-- [ ] Collect one evening of logs for both kids, with ground-truth notes
-- [ ] Summaries match the notes within tolerance; record the result in `docs/analysis/`
+Steps only you can do, in order. Guides: [windows-setup.md](windows-setup.md),
+[evening-test.md](evening-test.md). Tick each item here (or tell an agent to) as you go.
+
+### 6a. Get the build
+
+- [ ] Download `coinslot-windows-amd64` from the latest successful CI run (GitHub → Actions →
+      `ci` → run on this branch → Artifacts; requires being signed in to GitHub) and extract it.
+      Alternative: install Go and Git Bash, then run `windows/scripts/package.sh`.
+- [ ] Unblock the extracted files. They are unsigned and downloaded, so Windows marks them:
+      `Get-ChildItem <folder> -Recurse | Unblock-File`. If Defender/SmartScreen still blocks
+      or quarantines `coinslot.exe`, note it here; signing may become a task.
+
+### 6b. Inventory process names (signed in as each kid, or with them)
+
+- [ ] Roblox: `coinslot.exe -config .\config.json procs` before launching and while in a game;
+      identify the player and launcher/updater exes.
+- [ ] Roblox app home screen: open the app *without* joining a game and run `procs`. Is
+      `RobloxPlayerBeta.exe` running? ([analysis](analysis/2026-11-06-game-state-signals.md#to-verify-on-the-pc))
+- [ ] Minecraft: note the edition (Java or Bedrock) and the player and launcher exes. For Java, note
+      the window title in menus vs in a world (`coinslot.exe ... once` while it's in front).
+- [ ] Duolingo (and any other allowed app): app or browser? Note the exe and window title.
+- [ ] Among Us (optional): player exe.
+- [ ] Edit `config.json` with the confirmed names; delete `note` fields you've confirmed.
+      Send the confirmed names so `config/config.example.json` can be updated.
+
+### 6c. Install
+
+- [ ] In an admin PowerShell, in the package folder:
+      `powershell -ExecutionPolicy Bypass -File .\install.ps1`. Report any error output.
+- [ ] Confirm the task exists: Task Scheduler → `\Coinslot\Collector` (or
+      `Get-ScheduledTask -TaskPath \Coinslot\`).
+- [ ] Have each kid sign out and back in.
+- [ ] As each kid: `Get-Process coinslotw` shows it running, and
+      `& 'C:\Program Files\Coinslot\coinslot.exe' summary` shows `collector observed` increasing.
+- [ ] Check the PC's clock is correct (your notes are compared against it).
+
+### 6d. Evening test
+
+- [ ] Keep ground-truth notes for both kids (time, kid, what), per [evening-test.md](evening-test.md).
+- [ ] Try the edge cases once: game updating/loading, walking away >1 min with the game in front,
+      alt-tab to Duolingo with the game open, switching users with a game running.
+- [ ] Afterwards, as admin: run `summary` on each kid's log folder.
+- [ ] Back up both kids' log folders off the PC's profile directories (don't commit them).
+- [ ] Compare summary vs notes per kid per game. Send the differences, the summaries, and
+      (optionally) the logs. Results get recorded in `docs/analysis/`.
 
 ## 7. Release
 
-- [ ] Fixes from validation applied (config, idle threshold, bugs)
-- [ ] Pull request reviewed and merged to `main`
+- [ ] Agent: apply fixes from validation (config example, idle threshold, bugs)
+- [ ] Agent: re-tick section 6 items as confirmed; record the evening-test result in `docs/analysis/`
+- [ ] Owner: open or approve the pull request and merge to `main`
