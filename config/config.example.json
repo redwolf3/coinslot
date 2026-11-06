@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "sample_interval_seconds": 5,
+  "idle_threshold_seconds": 30,
+  "apps": [
+    {"app": "roblox", "class": "metered", "role": "player",
+     "exe": ["RobloxPlayerBeta.exe", "Windows10Universal.exe"],
+     "note": "UNVERIFIED candidate. Windows10Universal.exe was the Microsoft Store build; confirm with `coinslot procs`."},
+    {"app": "roblox", "class": "metered", "role": "launcher",
+     "exe": ["RobloxPlayerLauncher.exe", "RobloxPlayerInstaller.exe", "RobloxCrashHandler.exe"],
+     "note": "UNVERIFIED candidate."},
+
+    {"app": "minecraft", "class": "metered", "role": "player",
+     "exe": ["Minecraft.Windows.exe"],
+     "note": "UNVERIFIED candidate (Bedrock)."},
+    {"app": "minecraft", "class": "metered", "role": "player",
+     "exe": ["javaw.exe", "java.exe"], "title_contains": ["Minecraft"],
+     "note": "UNVERIFIED candidate (Java edition; javaw.exe is generic, so title-qualified)."},
+    {"app": "minecraft", "class": "metered", "role": "launcher",
+     "exe": ["MinecraftLauncher.exe", "Minecraft.exe"],
+     "note": "UNVERIFIED candidate."},
+
+    {"app": "among-us", "class": "metered", "role": "player",
+     "exe": ["Among Us.exe"],
+     "note": "UNVERIFIED candidate. Launchers (Steam/Epic/Xbox app) are not metered."},
+
+    {"app": "duolingo", "class": "allowed", "role": "player",
+     "exe": ["msedge.exe", "chrome.exe", "firefox.exe"], "title_contains": ["Duolingo"],
+     "note": "UNVERIFIED candidate. Duolingo on Windows is usually browser-based."}
+  ]
+}
