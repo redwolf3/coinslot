@@ -51,11 +51,19 @@ func (l *Log) Start() *Log {
 	return l
 }
 
+// FakePath is the image path synth logs use for exe.
+func FakePath(exe string) string { return `C:\Apps\` + exe }
+
 // Launch writes a proc start event and returns the pid.
-func (l *Log) Launch(exe string) uint32 {
+func (l *Log) Launch(exe string) uint32 { return l.proc(record.ProcStart, exe) }
+
+// Present writes a proc "present" event (already running at collector start).
+func (l *Log) Present(exe string) uint32 { return l.proc(record.ProcPresent, exe) }
+
+func (l *Log) proc(event, exe string) uint32 {
 	l.nextPID++
 	l.pidByExe[exe] = l.nextPID
-	l.write(record.Proc{Header: l.hdr(record.TypeProc), Event: record.ProcStart, PID: l.nextPID, Exe: exe})
+	l.write(record.Proc{Header: l.hdr(record.TypeProc), Event: event, PID: l.nextPID, Exe: exe, Path: FakePath(exe)})
 	return l.nextPID
 }
 
@@ -84,14 +92,16 @@ func (l *Log) Samples(n int, fg Fg) *Log {
 		}
 		l.prev = l.Now
 		var pid uint32
+		var path string
 		if fg.Exe != "" {
+			path = FakePath(fg.Exe)
 			pid = l.pidByExe[fg.Exe]
 			if pid == 0 {
 				pid = 1 // foreground process not tracked (e.g. explorer)
 			}
 		}
 		l.write(record.Sample{Header: l.hdr(record.TypeSample), DTS: dt, ConsoleActive: !fg.Away,
-			FgPID: pid, FgExe: fg.Exe, FgTitle: fg.Title, FgClass: "ignored-by-core", IdleS: fg.IdleS})
+			FgPID: pid, FgExe: fg.Exe, FgPath: path, FgTitle: fg.Title, FgClass: "ignored-by-core", IdleS: fg.IdleS})
 	}
 	return l
 }

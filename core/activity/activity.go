@@ -75,6 +75,11 @@ type Interval struct {
 	Day     string    // local date of End, YYYY-MM-DD
 	Seconds float64
 	State
+	// Raw foreground facts from the sample, for reports that need more than the State
+	// (inventory, and app usage later).
+	FgExe   string
+	FgTitle string
+	FgPath  string
 }
 
 // Options control replay. Zero values fall back to the config / defaults.
@@ -152,7 +157,11 @@ func Replay(evs []Event, cfg *config.Config, opt Options) []Interval {
 				ConsoleActive: s.ConsoleActive, FgPID: s.FgPID, FgExe: s.FgExe,
 				FgTitle: s.FgTitle, IdleS: s.IdleS, ProcExes: exes,
 			})
-			iv := Interval{User: s.User, SID: s.SID, Run: s.Run, End: end, Seconds: credit, State: st}
+			iv := Interval{User: s.User, SID: s.SID, Run: s.Run, End: end, Seconds: credit, State: st,
+				FgExe: s.FgExe, FgTitle: s.FgTitle, FgPath: s.FgPath}
+			if s.FgPID == 0 {
+				iv.FgExe, iv.FgTitle, iv.FgPath = "", "", ""
+			}
 			out = append(out, splitAtMidnight(iv)...)
 		}
 	}
