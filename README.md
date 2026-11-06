@@ -15,7 +15,7 @@ pure core turns them into a daily summary per child. No blocking, budgets, or to
 | Path        | What                                                         |
 |-------------|--------------------------------------------------------------|
 | `core/`     | Platform-independent logic: config, record schema, (soon) classifier, counter, summaries |
-| `windows/`  | Windows collector (`coinslot.exe`), Win32 probe, install scripts |
+| `windows/`  | Windows collector (`coinslot.exe` / `coinslotw.exe`), Win32 probe, packaging and install scripts |
 | `config/`   | Example config mapping process names to metered/allowed, player/launcher |
 | `docs/`     | Design notes and run instructions                            |
 | `ios/`      | Placeholder (later)                                          |
@@ -25,8 +25,7 @@ pure core turns them into a daily summary per child. No blocking, budgets, or to
 
 ```sh
 go test ./...
-GOOS=windows GOARCH=amd64 go build -o dist/coinslot.exe ./windows/cmd/coinslot
-GOOS=windows GOARCH=amd64 go build -ldflags=-H=windowsgui -o dist/coinslotw.exe ./windows/cmd/coinslot
+windows/scripts/package.sh   # -> dist/coinslot/: both exes, config.json, install scripts
 ```
 
 See [docs/design.md](docs/design.md) for the design and record schema, and
