@@ -46,6 +46,13 @@ jobs:
           cat "$LOCALAPPDATA"/Coinslot/logs/*.jsonl | head -c 4000
           grep -q '"type":"sample"' "$LOCALAPPDATA"/Coinslot/logs/*.jsonl
           dist/coinslot/coinslot.exe summary "$LOCALAPPDATA/Coinslot/logs"
+      - name: smoke inventory
+        shell: bash
+        run: dist/coinslot/coinslot.exe inventory -top 10 "$RUNNER_TEMP/lad/Coinslot/logs"
+      # Install, inspect the scheduled task, reinstall, uninstall (runner is admin).
+      - name: install test
+        shell: pwsh
+        run: ./windows/scripts/test-install.ps1 -Package dist/coinslot
       - uses: actions/upload-artifact@v4
         with:
           name: coinslot-windows-amd64
