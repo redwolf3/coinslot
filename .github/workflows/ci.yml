@@ -45,6 +45,7 @@ jobs:
           sleep 12; kill $pid || true
           cat "$LOCALAPPDATA"/Coinslot/logs/*.jsonl | head -c 4000
           grep -q '"type":"sample"' "$LOCALAPPDATA"/Coinslot/logs/*.jsonl
+          dist/coinslot/coinslot.exe summary "$LOCALAPPDATA/Coinslot/logs"
       - uses: actions/upload-artifact@v4
         with:
           name: coinslot-windows-amd64
