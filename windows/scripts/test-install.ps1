@@ -85,20 +85,29 @@ if ($proc) {
 }
 
 # ---- reinstall keeps an edited config; -OverwriteConfig replaces it ----
+# Also run the console build from the install dir, so reinstall must stop it too.
+# Stop the task's collector first: its per-session mutex would make a second one exit.
+Get-Process -Name coinslotw -ErrorAction SilentlyContinue | Stop-Process -Force -PassThru |
+    Wait-Process -Timeout 10 -ErrorAction SilentlyContinue
+$console = Start-Process -FilePath (Join-Path $dest 'coinslot.exe') -ArgumentList 'run' -WindowStyle Hidden -PassThru
+Start-Sleep -Seconds 2
+Check (-not $console.HasExited) 'console collector (coinslot.exe run) running before reinstall'
 $cfg = Join-Path $dest 'config.json'
 Add-Content -Path $cfg -Value ' '   # still valid JSON, different hash
 $edited = Hash $cfg
 & (Join-Path $Package 'install.ps1')
 Check ((Hash $cfg) -eq $edited) 'reinstall keeps the existing config.json'
-Check (@(Get-Process -Name coinslotw -ErrorAction SilentlyContinue).Count -eq 0) 'reinstall stops running collectors'
+Check (@(Get-Process -Name coinslot, coinslotw -ErrorAction SilentlyContinue).Count -eq 0) 'reinstall stops running collectors (both builds)'
 & (Join-Path $Package 'install.ps1') -OverwriteConfig
 Check ((Hash $cfg) -eq (Hash (Join-Path $Package 'config.json'))) '-OverwriteConfig replaces config.json'
 
-# ---- uninstall ----
+# ---- uninstall (with a console collector running from the install dir) ----
+$console = Start-Process -FilePath (Join-Path $dest 'coinslot.exe') -ArgumentList 'run' -WindowStyle Hidden -PassThru
+Start-Sleep -Seconds 2
 & (Join-Path $Package 'uninstall.ps1')
 Check ($null -eq (Get-ScheduledTask -TaskPath '\Coinslot\' -TaskName 'Collector' -ErrorAction SilentlyContinue)) 'uninstall removes the task'
 Check (-not (Test-Path $dest)) 'uninstall removes the install dir'
-Check (@(Get-Process -Name coinslotw -ErrorAction SilentlyContinue).Count -eq 0) 'uninstall stops collectors'
+Check (@(Get-Process -Name coinslot, coinslotw -ErrorAction SilentlyContinue).Count -eq 0) 'uninstall stops collectors (both builds)'
 
 if ($failures -gt 0) { throw "$failures check(s) failed" }
 Write-Host 'All install checks passed.'

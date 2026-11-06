@@ -15,8 +15,11 @@ param(
 $ErrorActionPreference = 'Stop'
 $src = $PSScriptRoot
 
-# Stop running collectors so the exe can be replaced.
-Get-Process -Name coinslotw -ErrorAction SilentlyContinue | Stop-Process -Force
+# Stop running collectors (both builds: coinslotw.exe from the task, coinslot.exe run by
+# hand) and wait for them to exit, so their files can be replaced or deleted.
+$running = @(Get-Process -Name coinslot, coinslotw -ErrorAction SilentlyContinue)
+$running | Stop-Process -Force
+$running | Wait-Process -Timeout 10 -ErrorAction SilentlyContinue
 
 New-Item -ItemType Directory -Force -Path $Dest | Out-Null
 Copy-Item (Join-Path $src 'coinslot.exe'), (Join-Path $src 'coinslotw.exe') $Dest -Force
