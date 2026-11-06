@@ -2,6 +2,7 @@ package activity
 
 import (
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/redwolf3/coinslot/core/config"
@@ -103,8 +104,12 @@ type runState struct {
 	intervalS float64
 	procs     map[uint32]string
 	// titled maps a running pid to the metered app a title-qualified rule
-	// identified it as, until the process exits.
-	titled map[uint32]string
+	// identified it as, until the process exits or the pid is reused.
+	titled map[uint32]titledApp
+}
+
+type titledApp struct {
+	app, exe string
 }
 
 // Replay reconstructs per-run process state from proc events and turns each
@@ -126,7 +131,7 @@ func Replay(evs []Event, cfg *config.Config, opt Options) []Interval {
 	get := func(run string) *runState {
 		rs := runs[run]
 		if rs == nil {
-			rs = &runState{intervalS: float64(cfg.SampleIntervalSeconds), procs: map[uint32]string{}, titled: map[uint32]string{}}
+			rs = &runState{intervalS: float64(cfg.SampleIntervalSeconds), procs: map[uint32]string{}, titled: map[uint32]titledApp{}}
 			runs[run] = rs
 		}
 		return rs
@@ -144,10 +149,15 @@ func Replay(evs []Event, cfg *config.Config, opt Options) []Interval {
 			switch ev.Proc.Event {
 			case record.ProcPresent, record.ProcStart:
 				rs.procs[ev.Proc.PID] = ev.Proc.Exe
-				delete(rs.titled, ev.Proc.PID) // new process; pid reused
-				if ev.Proc.LastTitle != "" {
-					if r := cfg.Match(ev.Proc.Exe, ev.Proc.LastTitle); r != nil && r.Class == config.ClassMetered && len(r.TitleContains) > 0 {
-						rs.titled[ev.Proc.PID] = r.App
+				// Keep identity learned from the foreground before this event if it is
+				// the same process (same exe); a different exe means the pid was reused.
+				if t, ok := rs.titled[ev.Proc.PID]; ok && !strings.EqualFold(t.exe, ev.Proc.Exe) {
+					delete(rs.titled, ev.Proc.PID)
+				}
+				for _, title := range ev.Proc.Titles {
+					if app := titleApp(cfg, ev.Proc.Exe, title); app != "" {
+						rs.titled[ev.Proc.PID] = titledApp{app: app, exe: ev.Proc.Exe}
+						break
 					}
 				}
 			case record.ProcExit:
@@ -172,9 +182,9 @@ func Replay(evs []Event, cfg *config.Config, opt Options) []Interval {
 				exes = append(exes, exe)
 			}
 			var known []string
-			for pid, app := range rs.titled {
+			for pid, t := range rs.titled {
 				if _, running := rs.procs[pid]; running {
-					known = append(known, app)
+					known = append(known, t.app)
 				}
 			}
 			f := Facts{ConsoleActive: s.ConsoleActive, FgPID: s.FgPID, FgExe: s.FgExe,
@@ -186,8 +196,8 @@ func Replay(evs []Event, cfg *config.Config, opt Options) []Interval {
 			}
 			st := Classify(cfg, threshold, f)
 			if s.FgPID != 0 {
-				if r := cfg.Match(s.FgExe, s.FgTitle); r != nil && r.Class == config.ClassMetered && len(r.TitleContains) > 0 {
-					rs.titled[s.FgPID] = r.App
+				if app := titleApp(cfg, s.FgExe, s.FgTitle); app != "" {
+					rs.titled[s.FgPID] = titledApp{app: app, exe: s.FgExe}
 				}
 			}
 			iv := Interval{User: s.User, SID: s.SID, Run: s.Run, End: end, Seconds: credit, State: st,
@@ -199,6 +209,14 @@ func Replay(evs []Event, cfg *config.Config, opt Options) []Interval {
 		}
 	}
 	return out
+}
+
+// titleApp returns the metered app a title-qualified rule assigns to exe+title.
+func titleApp(cfg *config.Config, exe, title string) string {
+	if r := cfg.Match(exe, title); r != nil && r.Class == config.ClassMetered && len(r.TitleContains) > 0 {
+		return r.App
+	}
+	return ""
 }
 
 // splitAtMidnight sets Day and splits an interval that starts on the previous

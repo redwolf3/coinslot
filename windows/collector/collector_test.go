@@ -315,15 +315,18 @@ func TestNewRunAtLocalMidnight(t *testing.T) {
 	}
 }
 
-// Copilot review r4496152987: a new run's snapshot carries the last foreground
-// title seen for each surviving process, as raw evidence for replay.
-func TestNewRunSnapshotCarriesLastTitle(t *testing.T) {
+// Copilot reviews r4496152987, r4496231028: a new run's snapshot carries the
+// distinct foreground titles seen for each surviving process (bounded), so an
+// earlier matching title survives a later non-matching one.
+func TestNewRunSnapshotCarriesTitles(t *testing.T) {
 	c, p, s, now := newTest(t)
 	p.procs = []Proc{{1, "explorer.exe"}, {9, "javaw.exe"}}
-	p.fg = Foreground{PID: 9, Exe: "javaw.exe", Title: "Minecraft 1.21.4"}
-	c.Tick()
+	for _, title := range []string{"Minecraft 1.21.4 - Singleplayer", "Minecraft 1.21.4", "Minecraft 1.21.4 - Singleplayer"} {
+		p.fg = Foreground{PID: 9, Exe: "javaw.exe", Title: title}
+		c.Tick()
+		*now = now.Add(5 * time.Second)
+	}
 	p.fg = Foreground{PID: 1, Exe: "explorer.exe"}
-	*now = now.Add(5 * time.Second)
 	c.Tick()
 	s.fail = true
 	*now = now.Add(5 * time.Second)
@@ -335,10 +338,25 @@ func TestNewRunSnapshotCarriesLastTitle(t *testing.T) {
 	got := map[string]any{}
 	for _, r := range s.ofType("proc") {
 		if r["run"] == newRun {
-			got[r["exe"].(string)] = r["last_title"]
+			got[r["exe"].(string)] = r["titles"]
 		}
 	}
-	if got["javaw.exe"] != "Minecraft 1.21.4" || got["explorer.exe"] != nil {
-		t.Fatalf("snapshot last_title: %v", got)
+	want := []any{"Minecraft 1.21.4 - Singleplayer", "Minecraft 1.21.4"}
+	if !reflect.DeepEqual(got["javaw.exe"], want) || got["explorer.exe"] != nil {
+		t.Fatalf("snapshot titles: %v", got)
+	}
+}
+
+func TestRememberTitleBoundedAndResetOnPidReuse(t *testing.T) {
+	c := &Collector{}
+	for i := 0; i < MaxTitles+3; i++ {
+		c.rememberTitle(9, "javaw.exe", string(rune('a'+i)))
+	}
+	if got := c.titles[9].titles; len(got) != MaxTitles || got[0] != "d" {
+		t.Fatalf("bounded titles: %v", got)
+	}
+	c.rememberTitle(9, "notepad.exe", "x") // pid reused by another exe
+	if got := c.titles[9]; got.exe != "notepad.exe" || !reflect.DeepEqual(got.titles, []string{"x"}) {
+		t.Fatalf("after pid reuse: %+v", got)
 	}
 }

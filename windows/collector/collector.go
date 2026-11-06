@@ -68,14 +68,42 @@ type Collector struct {
 	lastErr  map[string]string
 	day      string // local date of the current run's start
 	broken   bool   // a write failed in this run; the next tick starts a new run
-	// lastTitle is the last foreground window title seen per running pid. It
-	// survives run changes so a new run's "present" snapshot can carry it as raw
+	// titles holds the distinct foreground window titles seen per running pid. It
+	// survives run changes so a new run's "present" snapshot can carry them as raw
 	// evidence (e.g. javaw.exe that showed a Minecraft title).
-	lastTitle map[uint32]seenTitle
+	titles map[uint32]*seenTitles
 }
 
-type seenTitle struct {
-	exe, title string
+// MaxTitles bounds the distinct titles remembered per process (oldest dropped).
+const MaxTitles = 8
+
+type seenTitles struct {
+	exe    string
+	titles []string
+}
+
+// sameProcess reports whether remembered evidence belongs to a process with
+// this exe; a different exe on the same pid means the pid was reused.
+func (t *seenTitles) sameProcess(exe string) bool { return strings.EqualFold(t.exe, exe) }
+
+func (c *Collector) rememberTitle(pid uint32, exe, title string) {
+	if c.titles == nil {
+		c.titles = map[uint32]*seenTitles{}
+	}
+	t := c.titles[pid]
+	if t == nil || !t.sameProcess(exe) {
+		t = &seenTitles{exe: exe}
+		c.titles[pid] = t
+	}
+	for _, have := range t.titles {
+		if have == title {
+			return
+		}
+	}
+	t.titles = append(t.titles, title)
+	if len(t.titles) > MaxTitles {
+		t.titles = t.titles[len(t.titles)-MaxTitles:]
+	}
 }
 
 type procKey struct {
@@ -167,10 +195,7 @@ func (c *Collector) Tick() {
 	c.checkErr("foreground", err, ts)
 	s.FgPID, s.FgExe, s.FgPath, s.FgTitle, s.FgHostExe = fg.PID, fg.Exe, fg.Path, fg.Title, fg.HostExe
 	if fg.PID != 0 && fg.Title != "" {
-		if c.lastTitle == nil {
-			c.lastTitle = map[uint32]seenTitle{}
-		}
-		c.lastTitle[fg.PID] = seenTitle{exe: fg.Exe, title: fg.Title}
+		c.rememberTitle(fg.PID, fg.Exe, fg.Title)
 	}
 	switch r := c.Cfg.Match(fg.Exe, fg.Title); {
 	case fg.PID == 0:
@@ -246,7 +271,7 @@ func (c *Collector) diffProcs(procs []Proc, ts time.Time) {
 	sortKeys(exited)
 	sortKeys(started)
 	for _, k := range exited {
-		delete(c.lastTitle, k.pid)
+		delete(c.titles, k.pid)
 		c.emit(record.Proc{Header: c.header(record.TypeProc, ts), Event: record.ProcExit, PID: k.pid, Exe: k.exe}, ts)
 	}
 	ev := record.ProcStart
@@ -255,11 +280,14 @@ func (c *Collector) diffProcs(procs []Proc, ts time.Time) {
 	}
 	for _, k := range started {
 		rec := record.Proc{Header: c.header(record.TypeProc, ts), Event: ev, PID: k.pid, Exe: k.exe, Path: c.Probe.ProcessPath(k.pid)}
-		if seen, ok := c.lastTitle[k.pid]; ok {
-			if first && strings.EqualFold(seen.exe, k.exe) {
-				rec.LastTitle = seen.title
-			} else if !first {
-				delete(c.lastTitle, k.pid) // a new process reusing the pid
+		// Keep evidence for the same process even if it was seen in the foreground
+		// before a snapshot included it; drop it only when the pid was reused.
+		if t, ok := c.titles[k.pid]; ok {
+			switch {
+			case !t.sameProcess(k.exe):
+				delete(c.titles, k.pid)
+			case first:
+				rec.Titles = append([]string(nil), t.titles...)
 			}
 		}
 		c.emit(rec, ts)

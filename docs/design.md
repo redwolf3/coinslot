@@ -94,7 +94,9 @@ Per sample, with the run's process set rebuilt from `proc` events:
 | open, not playing (app A) | any of A's player/launcher processes running, or A in foreground, and A not active |
 
 A process identified only by a title-qualified rule (e.g. `javaw.exe` + "Minecraft") is
-remembered by pid once seen in the foreground with that title, and counts as open until it exits.
+remembered by pid once seen in the foreground with that title, and counts as open until it exits
+(or the pid is reused by a different exe). Seeing it in the foreground before the process
+snapshot lists it does not lose that identity.
 
 App usage (foreground time including passive use such as videos) is a separate, planned
 measure; see [roadmap.md](roadmap.md#product-model-two-measures). The v1 `allowed` figure
@@ -140,7 +142,7 @@ Every line has a common header:
 | `players_running` | app ids of running metered players |
 | `idle_s` | seconds since last keyboard/mouse input in this session; **omitted** when the read failed (treated as not present) |
 
-`proc`: `event` (`present` in a run's snapshot, then `start`/`exit`), `pid`, `exe`, `path`, and on `present` records `last_title`: the last foreground window title the collector saw for that process (lets replay re-identify title-qualified apps such as Minecraft Java across run boundaries).
+`proc`: `event` (`present` in a run's snapshot, then `start`/`exit`), `pid`, `exe`, `path`, and on `present` records `titles`: the distinct foreground window titles (up to 8, oldest first) the collector saw for that process. They let replay re-identify title-qualified apps such as Minecraft Java across run boundaries, even after the title changed to one that no longer matches.
 `start`: `reason` (`startup` \| `new_day` \| `write_recovery`), host, session id, collector version, config path + SHA-256, interval, idle threshold.
 `error`: `op`, `msg` (deduplicated: logged when the message for an op changes).
 

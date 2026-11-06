@@ -85,11 +85,12 @@ type Proc struct {
 	PID   uint32 `json:"pid"`
 	Exe   string `json:"exe"`
 	Path  string `json:"path,omitempty"`
-	// LastTitle, on "present" records of a run that follows another run of the
-	// same collector, is the last foreground window title seen for this process.
-	// It lets replay re-identify title-qualified apps (e.g. Minecraft Java) across
-	// run boundaries.
-	LastTitle string `json:"last_title,omitempty"`
+	// Titles, on "present" records of a run that follows another run of the same
+	// collector, are the distinct foreground window titles seen for this process
+	// (oldest first, at most collector.MaxTitles). Raw evidence that lets replay
+	// re-identify title-qualified apps (e.g. Minecraft Java) across run boundaries,
+	// even if the latest title no longer matches (e.g. back in a menu).
+	Titles []string `json:"titles,omitempty"`
 }
 
 type Error struct {

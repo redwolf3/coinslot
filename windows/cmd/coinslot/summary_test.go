@@ -150,3 +150,96 @@ func TestTitledAppOpenAcrossMidnightEndToEnd(t *testing.T) {
 		t.Fatalf("minecraft open on day 2 = %v min, want 1.92", got)
 	}
 }
+
+type titledScenario struct {
+	t      *testing.T
+	dir    string
+	cfg    string
+	logDir string
+	now    time.Time
+	probe  *scriptedProbe
+	c      *collector.Collector
+}
+
+func newTitled(t *testing.T, titleRule string, start time.Time) *titledScenario {
+	t.Helper()
+	sc := &titledScenario{t: t, dir: t.TempDir(), now: start, probe: &scriptedProbe{}}
+	sc.cfg = filepath.Join(sc.dir, "config.json")
+	cfgJSON := `{"schema":1,"apps":[
+	 {"app":"minecraft","class":"metered","role":"player","exe":["javaw.exe"],"title_contains":["` + titleRule + `"]},
+	 {"app":"duolingo","class":"allowed","exe":["msedge.exe"],"title_contains":["Duolingo"]}]}`
+	if err := os.WriteFile(sc.cfg, []byte(cfgJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, sum, err := config.Load(sc.cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sc.logDir = filepath.Join(sc.dir, "logs")
+	sc.c = &collector.Collector{Cfg: cfg, ConfigPath: sc.cfg, ConfigSHA: sum, Probe: sc.probe,
+		Sink: collector.FileSink{Dir: sc.logDir}, ID: collector.Identity{User: `PC\kid1`, SID: "S-1"},
+		Now: func() time.Time { return sc.now }}
+	return sc
+}
+
+func (sc *titledScenario) tick(n int) {
+	for i := 0; i < n; i++ {
+		sc.c.Tick()
+		sc.now = sc.now.Add(5 * time.Second)
+	}
+}
+
+// minecraftOpen summarises the given log file and returns Minecraft's
+// open-not-playing minutes.
+func (sc *titledScenario) minecraftOpen(file string) float64 {
+	sc.t.Helper()
+	var out, errb bytes.Buffer
+	if err := summaryCmd([]string{"-json", filepath.Join(sc.logDir, file)}, sc.cfg, sc.logDir, &out, &errb); err != nil {
+		sc.t.Fatalf("%v: %s", err, errb.String())
+	}
+	var days []summary.Day
+	if err := json.Unmarshal(out.Bytes(), &days); err != nil {
+		sc.t.Fatal(err)
+	}
+	for _, d := range days {
+		for _, g := range d.Games {
+			if g.App == "minecraft" {
+				return g.OpenNotPlayingMin
+			}
+		}
+	}
+	return 0
+}
+
+// Copilot review r4496231028: with a "Singleplayer" title rule, the process later
+// shows a non-matching menu title before midnight; the next day must still count
+// it as open.
+func TestTitleChangeBeforeRunBoundaryEndToEnd(t *testing.T) {
+	sc := newTitled(t, "Singleplayer", time.Date(2026, 11, 6, 23, 58, 0, 0, time.Local))
+	sc.probe.procs = []collector.Proc{{PID: 4, Exe: "msedge.exe"}, {PID: 9, Exe: "javaw.exe"}}
+	sc.probe.fg = collector.Foreground{PID: 9, Exe: "javaw.exe", Title: "Minecraft 1.21.4 - Singleplayer"}
+	sc.tick(6)
+	sc.probe.fg = collector.Foreground{PID: 9, Exe: "javaw.exe", Title: "Minecraft 1.21.4"} // back in a menu
+	sc.tick(6)
+	sc.probe.fg = collector.Foreground{PID: 4, Exe: "msedge.exe", Title: "Duolingo"}
+	sc.tick(12 + 24) // across midnight
+	if got := sc.minecraftOpen("2026-11-07.jsonl"); got != 1.92 {
+		t.Fatalf("minecraft open on day 2 = %v, want 1.92", got)
+	}
+}
+
+// Copilot review 5805169230 (activity.go:147): the game is seen in the foreground
+// before a process snapshot includes it; the later start event must not erase
+// the identity learned from its title.
+func TestForegroundBeforeSnapshotEndToEnd(t *testing.T) {
+	sc := newTitled(t, "Minecraft", time.Date(2026, 11, 6, 18, 0, 0, 0, time.Local))
+	sc.probe.procs = []collector.Proc{{PID: 4, Exe: "msedge.exe"}} // snapshot taken just before javaw started
+	sc.probe.fg = collector.Foreground{PID: 9, Exe: "javaw.exe", Title: "Minecraft 1.21.4"}
+	sc.tick(2)
+	sc.probe.procs = []collector.Proc{{PID: 4, Exe: "msedge.exe"}, {PID: 9, Exe: "javaw.exe"}}
+	sc.probe.fg = collector.Foreground{PID: 4, Exe: "msedge.exe", Title: "Duolingo"}
+	sc.tick(12)
+	if got := sc.minecraftOpen("2026-11-06.jsonl"); got != 1 {
+		t.Fatalf("minecraft open = %v, want 1", got)
+	}
+}
