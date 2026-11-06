@@ -1,0 +1,60 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+      - run: go vet ./...
+      - run: GOOS=windows GOARCH=amd64 go vet ./...
+      - run: go test ./...
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - run: go test ./...
+      - name: package
+        shell: bash
+        run: windows/scripts/package.sh
+      # Smoke test the real Win32 probe. A CI runner has no interactive desktop,
+      # so foreground/idle may be empty; this checks the calls don't fail.
+      - name: smoke procs
+        run: dist\coinslot\coinslot.exe procs
+      - name: smoke once
+        run: dist\coinslot\coinslot.exe once
+      - name: smoke run
+        shell: bash
+        run: |
+          export LOCALAPPDATA="$RUNNER_TEMP/lad"
+          dist/coinslot/coinslot.exe run & pid=$!
+          sleep 12; kill $pid || true
+          cat "$LOCALAPPDATA"/Coinslot/logs/*.jsonl | head -c 4000
+          grep -q '"type":"sample"' "$LOCALAPPDATA"/Coinslot/logs/*.jsonl
+          dist/coinslot/coinslot.exe summary "$LOCALAPPDATA/Coinslot/logs"
+      - name: smoke inventory
+        shell: bash
+        run: dist/coinslot/coinslot.exe inventory -top 10 "$RUNNER_TEMP/lad/Coinslot/logs"
+      # Install, inspect the scheduled task, reinstall, uninstall (runner is admin).
+      - name: install test
+        shell: pwsh
+        run: ./windows/scripts/test-install.ps1 -Package dist/coinslot
+      - uses: actions/upload-artifact@v6
+        with:
+          name: coinslot-windows-amd64
+          path: dist/coinslot
