@@ -1,3 +1,3 @@
 module github.com/redwolf3/coinslot
 
-go 1.24.7
+go 1.24
