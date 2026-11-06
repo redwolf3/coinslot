@@ -3,6 +3,7 @@
 | Folder / file | Contents |
 |---------------|----------|
 | [design.md](design.md) | Current architecture, collector, config, counting model, record schema |
+| [mvp-1.md](mvp-1.md) | MVP 1 deliverables checklist and status |
 | [roadmap.md](roadmap.md) | Planned post-MVP work with designs |
 | [adr/](adr/) | Architecture Decision Records: one decision per file, numbered, never rewritten |
 | [analysis/](analysis/) | Research, investigations, data analysis; dated, point-in-time |
