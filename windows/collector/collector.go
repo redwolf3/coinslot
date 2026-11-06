@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/redwolf3/coinslot/core/config"
@@ -67,6 +68,14 @@ type Collector struct {
 	lastErr  map[string]string
 	day      string // local date of the current run's start
 	broken   bool   // a write failed in this run; the next tick starts a new run
+	// lastTitle is the last foreground window title seen per running pid. It
+	// survives run changes so a new run's "present" snapshot can carry it as raw
+	// evidence (e.g. javaw.exe that showed a Minecraft title).
+	lastTitle map[uint32]seenTitle
+}
+
+type seenTitle struct {
+	exe, title string
 }
 
 type procKey struct {
@@ -157,6 +166,12 @@ func (c *Collector) Tick() {
 	fg, err := c.Probe.Foreground()
 	c.checkErr("foreground", err, ts)
 	s.FgPID, s.FgExe, s.FgPath, s.FgTitle, s.FgHostExe = fg.PID, fg.Exe, fg.Path, fg.Title, fg.HostExe
+	if fg.PID != 0 && fg.Title != "" {
+		if c.lastTitle == nil {
+			c.lastTitle = map[uint32]seenTitle{}
+		}
+		c.lastTitle[fg.PID] = seenTitle{exe: fg.Exe, title: fg.Title}
+	}
 	switch r := c.Cfg.Match(fg.Exe, fg.Title); {
 	case fg.PID == 0:
 		s.FgClass = record.FgClassNone
@@ -231,6 +246,7 @@ func (c *Collector) diffProcs(procs []Proc, ts time.Time) {
 	sortKeys(exited)
 	sortKeys(started)
 	for _, k := range exited {
+		delete(c.lastTitle, k.pid)
 		c.emit(record.Proc{Header: c.header(record.TypeProc, ts), Event: record.ProcExit, PID: k.pid, Exe: k.exe}, ts)
 	}
 	ev := record.ProcStart
@@ -238,7 +254,15 @@ func (c *Collector) diffProcs(procs []Proc, ts time.Time) {
 		ev = record.ProcPresent
 	}
 	for _, k := range started {
-		c.emit(record.Proc{Header: c.header(record.TypeProc, ts), Event: ev, PID: k.pid, Exe: k.exe, Path: c.Probe.ProcessPath(k.pid)}, ts)
+		rec := record.Proc{Header: c.header(record.TypeProc, ts), Event: ev, PID: k.pid, Exe: k.exe, Path: c.Probe.ProcessPath(k.pid)}
+		if seen, ok := c.lastTitle[k.pid]; ok {
+			if first && strings.EqualFold(seen.exe, k.exe) {
+				rec.LastTitle = seen.title
+			} else if !first {
+				delete(c.lastTitle, k.pid) // a new process reusing the pid
+			}
+		}
+		c.emit(rec, ts)
 	}
 	c.procs = cur
 }

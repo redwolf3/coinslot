@@ -98,3 +98,55 @@ func TestCollectorToSummary(t *testing.T) {
 		}
 	}
 }
+
+// Copilot review r4496152987: Minecraft Java is identified only by its window
+// title. When it is left open in the background across a run boundary (here:
+// local midnight), the next day's log alone must still count it as open.
+func TestTitledAppOpenAcrossMidnightEndToEnd(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.json")
+	cfgJSON := `{"schema":1,"apps":[
+	 {"app":"minecraft","class":"metered","role":"player","exe":["javaw.exe"],"title_contains":["Minecraft"]},
+	 {"app":"duolingo","class":"allowed","exe":["msedge.exe"],"title_contains":["Duolingo"]}]}`
+	if err := os.WriteFile(cfgPath, []byte(cfgJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, sum, err := config.Load(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 11, 6, 23, 58, 0, 0, time.Local)
+	probe := &scriptedProbe{procs: []collector.Proc{{PID: 4, Exe: "msedge.exe"}, {PID: 9, Exe: "javaw.exe"}}}
+	logDir := filepath.Join(dir, "logs")
+	c := &collector.Collector{Cfg: cfg, ConfigPath: cfgPath, ConfigSHA: sum, Probe: probe,
+		Sink: collector.FileSink{Dir: logDir}, ID: collector.Identity{User: `PC\kid1`, SID: "S-1"},
+		Now: func() time.Time { return now }}
+	tick := func(n int) {
+		for i := 0; i < n; i++ {
+			c.Tick()
+			now = now.Add(5 * time.Second)
+		}
+	}
+	probe.fg = collector.Foreground{PID: 9, Exe: "javaw.exe", Title: "Minecraft 1.21.4 - Singleplayer"}
+	tick(12) // 23:58-23:59 playing
+	probe.fg = collector.Foreground{PID: 4, Exe: "msedge.exe", Title: "Duolingo"}
+	tick(12 + 24) // 23:59-00:02, Minecraft open behind Duolingo across midnight
+
+	day2 := filepath.Join(logDir, "2026-11-07.jsonl")
+	var out, errb bytes.Buffer
+	if err := summaryCmd([]string{"-json", day2}, cfgPath, logDir, &out, &errb); err != nil {
+		t.Fatalf("%v: %s", err, errb.String())
+	}
+	var days []summary.Day
+	if err := json.Unmarshal(out.Bytes(), &days); err != nil {
+		t.Fatal(err)
+	}
+	if len(days) != 1 || len(days[0].Games) != 1 || days[0].Games[0].App != "minecraft" {
+		t.Fatalf("day 2 summary: %s", out.String())
+	}
+	// Day 2 ticks: 00:00:00..00:01:55 (24). The first starts the new run and
+	// credits 0, so 23 x 5s = 115s.
+	if got := days[0].Games[0].OpenNotPlayingMin; got != 1.92 {
+		t.Fatalf("minecraft open on day 2 = %v min, want 1.92", got)
+	}
+}

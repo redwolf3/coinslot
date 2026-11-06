@@ -145,6 +145,11 @@ func Replay(evs []Event, cfg *config.Config, opt Options) []Interval {
 			case record.ProcPresent, record.ProcStart:
 				rs.procs[ev.Proc.PID] = ev.Proc.Exe
 				delete(rs.titled, ev.Proc.PID) // new process; pid reused
+				if ev.Proc.LastTitle != "" {
+					if r := cfg.Match(ev.Proc.Exe, ev.Proc.LastTitle); r != nil && r.Class == config.ClassMetered && len(r.TitleContains) > 0 {
+						rs.titled[ev.Proc.PID] = r.App
+					}
+				}
 			case record.ProcExit:
 				delete(rs.procs, ev.Proc.PID)
 				delete(rs.titled, ev.Proc.PID)

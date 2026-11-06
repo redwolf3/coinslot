@@ -140,7 +140,7 @@ Every line has a common header:
 | `players_running` | app ids of running metered players |
 | `idle_s` | seconds since last keyboard/mouse input in this session; **omitted** when the read failed (treated as not present) |
 
-`proc`: `event` (`present` at startup, then `start`/`exit`), `pid`, `exe`, `path`.
+`proc`: `event` (`present` in a run's snapshot, then `start`/`exit`), `pid`, `exe`, `path`, and on `present` records `last_title`: the last foreground window title the collector saw for that process (lets replay re-identify title-qualified apps such as Minecraft Java across run boundaries).
 `start`: `reason` (`startup` \| `new_day` \| `write_recovery`), host, session id, collector version, config path + SHA-256, interval, idle threshold.
 `error`: `op`, `msg` (deduplicated: logged when the message for an op changes).
 

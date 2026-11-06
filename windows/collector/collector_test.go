@@ -314,3 +314,31 @@ func TestNewRunAtLocalMidnight(t *testing.T) {
 		t.Fatal("new day's run must re-snapshot running processes")
 	}
 }
+
+// Copilot review r4496152987: a new run's snapshot carries the last foreground
+// title seen for each surviving process, as raw evidence for replay.
+func TestNewRunSnapshotCarriesLastTitle(t *testing.T) {
+	c, p, s, now := newTest(t)
+	p.procs = []Proc{{1, "explorer.exe"}, {9, "javaw.exe"}}
+	p.fg = Foreground{PID: 9, Exe: "javaw.exe", Title: "Minecraft 1.21.4"}
+	c.Tick()
+	p.fg = Foreground{PID: 1, Exe: "explorer.exe"}
+	*now = now.Add(5 * time.Second)
+	c.Tick()
+	s.fail = true
+	*now = now.Add(5 * time.Second)
+	c.Tick()
+	s.fail = false
+	*now = now.Add(5 * time.Second)
+	c.Tick() // write_recovery run
+	newRun := s.ofType("start")[1]["run"]
+	got := map[string]any{}
+	for _, r := range s.ofType("proc") {
+		if r["run"] == newRun {
+			got[r["exe"].(string)] = r["last_title"]
+		}
+	}
+	if got["javaw.exe"] != "Minecraft 1.21.4" || got["explorer.exe"] != nil {
+		t.Fatalf("snapshot last_title: %v", got)
+	}
+}
