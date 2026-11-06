@@ -154,3 +154,57 @@ func TestParseTolerant(t *testing.T) {
 		t.Fatalf("events=%d stats=%+v", len(evs), st)
 	}
 }
+
+// Copilot review r4496048688: a failed idle read must not count as recent input.
+func TestIdleUnknownIsNotPresent(t *testing.T) {
+	c := cfg(t)
+	f := Facts{ConsoleActive: true, FgPID: 9, FgExe: "RobloxPlayerBeta.exe", IdleUnknown: true,
+		ProcExes: []string{"RobloxPlayerBeta.exe"}}
+	if got, want := Classify(c, 30, f), (State{Open: []string{"roblox"}}); !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %+v want %+v", got, want)
+	}
+
+	l := synth.New("u", "S-1", "r1", t0).Start()
+	l.Launch("RobloxPlayerBeta.exe")
+	l.Samples(3, synth.Fg{Exe: "RobloxPlayerBeta.exe"})                    // 10s active
+	l.Samples(4, synth.Fg{Exe: "RobloxPlayerBeta.exe", IdleUnknown: true}) // 20s unknown
+	ivs := replay(t, l.Bytes())
+	if got := sum(ivs, func(iv Interval) bool { return iv.Active != "" }); got != 10 {
+		t.Errorf("active = %v, want 10", got)
+	}
+	if got := sum(ivs, func(iv Interval) bool { return len(iv.Open) > 0 }); got != 20 {
+		t.Errorf("open = %v, want 20", got)
+	}
+}
+
+// Copilot review r4496048482: a title-identified player (Minecraft Java) stays
+// "open" after it leaves the foreground, until its process exits; other javaw.exe
+// processes are never counted.
+func TestTitledProcessStaysOpenUntilExit(t *testing.T) {
+	l := synth.New("u", "S-1", "r1", t0).Start()
+	l.Launch("msedge.exe")
+	l.Samples(1, synth.Fg{Exe: "explorer.exe"})
+	l.Launch("javaw.exe")
+	l.Samples(12, synth.Fg{Exe: "javaw.exe", Title: "Minecraft 1.21.4 - Singleplayer"}) // 60s active
+	l.Samples(6, synth.Fg{Exe: "msedge.exe", Title: "Duolingo"})                        // 30s, minecraft open
+	l.Exit("javaw.exe")
+	l.Samples(2, synth.Fg{Exe: "msedge.exe", Title: "Duolingo"}) // 10s, closed
+	ivs := replay(t, l.Bytes())
+	if got := sum(ivs, func(iv Interval) bool { return iv.Active == "minecraft" }); got != 60 {
+		t.Errorf("active = %v, want 60", got)
+	}
+	if got := sum(ivs, func(iv Interval) bool { return reflect.DeepEqual(iv.Open, []string{"minecraft"}) }); got != 30 {
+		t.Errorf("open while in background = %v, want 30", got)
+	}
+
+	// A javaw.exe never seen with a Minecraft title stays unclassified.
+	l2 := synth.New("u", "S-1", "r2", t0).Start()
+	l2.Launch("javaw.exe")
+	l2.Samples(4, synth.Fg{Exe: "javaw.exe", Title: "Some IDE"})
+	l2.Samples(4, synth.Fg{Exe: "explorer.exe"})
+	for _, iv := range replay(t, l2.Bytes()) {
+		if len(iv.Open) > 0 || iv.Active != "" {
+			t.Fatalf("unrelated javaw classified: %+v", iv)
+		}
+	}
+}

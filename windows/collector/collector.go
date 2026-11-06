@@ -154,8 +154,10 @@ func (c *Collector) Tick() {
 	s.PlayerRunning = len(s.PlayersRunning) > 0
 
 	idle, err := c.Probe.IdleSeconds()
-	c.checkErr("idle", err, ts)
-	s.IdleS = round3(idle)
+	if c.checkErr("idle", err, ts) {
+		v := round3(idle)
+		s.IdleS = &v
+	}
 
 	s.Header = c.header(record.TypeSample, ts)
 	c.emit(s, ts)

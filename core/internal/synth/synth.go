@@ -79,6 +79,8 @@ type Fg struct {
 	Exe, Title string
 	IdleS      float64
 	Away       bool // session not the active console (user switched away)
+	// IdleUnknown omits idle_s, as the collector does when the idle read fails.
+	IdleUnknown bool
 }
 
 // Samples writes n samples, advancing time by Interval before each one except the
@@ -100,8 +102,13 @@ func (l *Log) Samples(n int, fg Fg) *Log {
 				pid = 1 // foreground process not tracked (e.g. explorer)
 			}
 		}
+		var idle *float64
+		if !fg.IdleUnknown {
+			v := fg.IdleS
+			idle = &v
+		}
 		l.write(record.Sample{Header: l.hdr(record.TypeSample), DTS: dt, ConsoleActive: !fg.Away,
-			FgPID: pid, FgExe: fg.Exe, FgPath: path, FgTitle: fg.Title, FgClass: "ignored-by-core", IdleS: fg.IdleS})
+			FgPID: pid, FgExe: fg.Exe, FgPath: path, FgTitle: fg.Title, FgClass: "ignored-by-core", IdleS: idle})
 	}
 	return l
 }

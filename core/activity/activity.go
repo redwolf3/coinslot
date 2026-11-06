@@ -16,7 +16,12 @@ type Facts struct {
 	FgExe         string
 	FgTitle       string
 	IdleS         float64
+	IdleUnknown   bool // the idle read failed; input-dependent states are not credited
 	ProcExes      []string
+	// KnownOpen lists metered apps identified earlier for processes that are still
+	// running, e.g. javaw.exe recognised as Minecraft by its window title while it
+	// was in the foreground. Exe names alone can't identify those.
+	KnownOpen []string
 }
 
 // State is the classification of one moment. The fields are not mutually
@@ -38,9 +43,12 @@ type State struct {
 //  3. input within idleThresholdS, in the active console session.
 func Classify(cfg *config.Config, idleThresholdS float64, f Facts) State {
 	var st State
-	st.Present = f.ConsoleActive && f.IdleS <= idleThresholdS
+	st.Present = f.ConsoleActive && !f.IdleUnknown && f.IdleS <= idleThresholdS
 
 	open := map[string]bool{}
+	for _, app := range f.KnownOpen {
+		open[app] = true
+	}
 	for _, exe := range f.ProcExes {
 		if r := cfg.MatchProcess(exe); r != nil && r.Class == config.ClassMetered {
 			open[r.App] = true
@@ -94,6 +102,9 @@ type Options struct {
 type runState struct {
 	intervalS float64
 	procs     map[uint32]string
+	// titled maps a running pid to the metered app a title-qualified rule
+	// identified it as, until the process exits.
+	titled map[uint32]string
 }
 
 // Replay reconstructs per-run process state from proc events and turns each
@@ -115,7 +126,7 @@ func Replay(evs []Event, cfg *config.Config, opt Options) []Interval {
 	get := func(run string) *runState {
 		rs := runs[run]
 		if rs == nil {
-			rs = &runState{intervalS: float64(cfg.SampleIntervalSeconds), procs: map[uint32]string{}}
+			rs = &runState{intervalS: float64(cfg.SampleIntervalSeconds), procs: map[uint32]string{}, titled: map[uint32]string{}}
 			runs[run] = rs
 		}
 		return rs
@@ -133,8 +144,10 @@ func Replay(evs []Event, cfg *config.Config, opt Options) []Interval {
 			switch ev.Proc.Event {
 			case record.ProcPresent, record.ProcStart:
 				rs.procs[ev.Proc.PID] = ev.Proc.Exe
+				delete(rs.titled, ev.Proc.PID) // new process; pid reused
 			case record.ProcExit:
 				delete(rs.procs, ev.Proc.PID)
+				delete(rs.titled, ev.Proc.PID)
 			}
 		case ev.Sample != nil:
 			s := ev.Sample
@@ -153,10 +166,25 @@ func Replay(evs []Event, cfg *config.Config, opt Options) []Interval {
 			for _, exe := range rs.procs {
 				exes = append(exes, exe)
 			}
-			st := Classify(cfg, threshold, Facts{
-				ConsoleActive: s.ConsoleActive, FgPID: s.FgPID, FgExe: s.FgExe,
-				FgTitle: s.FgTitle, IdleS: s.IdleS, ProcExes: exes,
-			})
+			var known []string
+			for pid, app := range rs.titled {
+				if _, running := rs.procs[pid]; running {
+					known = append(known, app)
+				}
+			}
+			f := Facts{ConsoleActive: s.ConsoleActive, FgPID: s.FgPID, FgExe: s.FgExe,
+				FgTitle: s.FgTitle, ProcExes: exes, KnownOpen: known}
+			if s.IdleS == nil {
+				f.IdleUnknown = true
+			} else {
+				f.IdleS = *s.IdleS
+			}
+			st := Classify(cfg, threshold, f)
+			if s.FgPID != 0 {
+				if r := cfg.Match(s.FgExe, s.FgTitle); r != nil && r.Class == config.ClassMetered && len(r.TitleContains) > 0 {
+					rs.titled[s.FgPID] = r.App
+				}
+			}
 			iv := Interval{User: s.User, SID: s.SID, Run: s.Run, End: end, Seconds: credit, State: st,
 				FgExe: s.FgExe, FgTitle: s.FgTitle, FgPath: s.FgPath}
 			if s.FgPID == 0 {

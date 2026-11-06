@@ -66,7 +66,9 @@ type Sample struct {
 	IsMetered      bool     `json:"is_metered"`
 	PlayerRunning  bool     `json:"player_running"`
 	PlayersRunning []string `json:"players_running,omitempty"`
-	IdleS          float64  `json:"idle_s"`
+	// IdleS is seconds since the last keyboard/mouse input; nil (omitted) when the
+	// read failed, so a failure is never mistaken for recent input.
+	IdleS *float64 `json:"idle_s,omitempty"`
 }
 
 type Proc struct {
