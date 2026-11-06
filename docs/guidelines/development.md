@@ -4,6 +4,9 @@
 
 - Work on a branch; `main` is updated through pull requests, merged with **squash and merge**.
   Write the PR title as the squash commit subject (`<area>: <what changed>`).
+- Each PR updates the active milestone checklist (`docs/mvp-1.md`) in its own changes, so that
+  after the merge the checklist matches reality. Tick items the PR completes (with the PR/issue
+  number), add newly discovered work, and never tick work that only happens after merge.
 - **Small, shippable commits.** Each commit builds and passes:
   ```sh
   gofmt -l .                                     # prints nothing

@@ -49,7 +49,7 @@ as the change.
 | [README.md](README.md) | Overview, layout, quick start | Always first |
 | [docs/README.md](docs/README.md) | Index of all docs | Looking for anything |
 | [docs/design.md](docs/design.md) | Architecture, collector, config, counting model, record schema | Changing any code |
-| [docs/mvp-1.md](docs/mvp-1.md) | MVP 1 checklist: what's done, what's left | Before starting any MVP work; tick items in the same commit |
+| [docs/mvp-1.md](docs/mvp-1.md) | MVP 1 checklist: what's done, what's left | Before starting any MVP work; update it in every PR so it matches the state once that PR is merged |
 | [docs/roadmap.md](docs/roadmap.md) | Planned post-MVP work and its designs | Before proposing new features |
 | [docs/adr/](docs/adr/) | Architecture Decision Records: why things are the way they are | Before changing a past decision |
 | [docs/analysis/](docs/analysis/) | Research and investigations (e.g. game state signals) | Before researching something again |
@@ -95,6 +95,9 @@ and on the real PC.
 
 - Small, shippable commits. Each commit builds and passes all checks above.
 - Merge pull requests with **squash and merge**.
+- Every PR updates `docs/mvp-1.md` (the active milestone checklist) as part of its changes: tick,
+  add, or reword items so the checklist is accurate the moment the PR is merged. Reference the PR
+  or issue number on the items it completes.
 - Ask the owner before any large design change. Record accepted decisions as an ADR.
 - Write findings from research or log analysis to `docs/analysis/` so they are not redone.
 - Question requirements that don't make sense or don't follow standards. Don't silently comply.

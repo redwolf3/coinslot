@@ -116,7 +116,7 @@ Planned for Sunday 2026-11-08. Setup is about 10 minutes, then notes during the 
 
 - [x] Base work merged to `main`: PR #1, after 5 Copilot review rounds (10 findings fixed).
       Owner approved the merge; owner's own review of #1 is still pending.
-- [x] Follow-up #2: `summary -date` reads only that day's log file
+- [x] Follow-up #2: `summary -date` reads only that day's log file (PR #4)
 - [ ] Follow-up #3: stricter title matching, once the evening's real titles are known
 - [ ] Agent: apply fixes from validation (config example, idle threshold, bugs)
 - [ ] Agent: re-tick section 6 items as confirmed; record the evening-test result in `docs/analysis/`
