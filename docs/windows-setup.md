@@ -16,9 +16,41 @@ internet" mark so SmartScreen doesn't block them:
 Get-ChildItem .\coinslot-windows-amd64 -Recurse | Unblock-File
 ```
 
-## 2. Inventory process names (do this before trusting any numbers)
+## 2. Inventory process names
 
-The rules in `config.json` are **unverified candidates**. Confirm them on the real PC.
+The rules in `config.json` are **unverified candidates**. The numbers can't be trusted until
+the names are confirmed. There are two ways to do this, and either is fine:
+
+- **After collecting (recommended, least effort):** install with the example config and let the
+  kids play. Then run `inventory` on their logs (below) and fix `config.json`. Logs keep the
+  raw facts, so the same evening re-summarises correctly with the fixed config. No second
+  session is needed.
+- **Before collecting:** check by hand with `procs`/`once`, as in the second part of this section.
+
+### From logs: `inventory`
+
+As admin, after an evening (or as the kid, without the path, for today's own log):
+
+```powershell
+$cs = 'C:\Program Files\Coinslot\coinslot.exe'
+& $cs inventory 'C:\Users\kid1\AppData\Local\Coinslot\logs'
+```
+
+It lists:
+
+- **FOREGROUND:** each program that was in front, with total time, time with input, full path,
+  its top window titles, and how the current config matches it (`app/class/role` or `-`).
+  The game's **player** is the exe that was in front for most of the play time with
+  the game's title.
+- **PROCESSES:** programs started while collecting, with running time, start count, and path.
+  Launchers, installers and updaters show up here, usually started just before the player and
+  in front only briefly or not at all.
+
+Anything with `match -` that is a game, launcher, or allowed app needs a rule. Edit
+`C:\Program Files\Coinslot\config.json` as admin, re-run `inventory` until the matches are
+right, then re-run `summary`. `-json` gives the full lists; `-top 0` shows every row.
+
+### By hand, before collecting: `procs` and `once`
 
 Signed in as a child (or with the child next to you), open PowerShell in the package folder:
 

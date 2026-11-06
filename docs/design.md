@@ -17,9 +17,10 @@ core/
   record/                       JSONL record types (schema v1)
   activity/                     parse logs, replay process state, classify, credit intervals
   summary/                      daily summary per child (date, SID)
+  inventory/                    foreground exes/titles and started processes from logs (config discovery)
   internal/synth/               synthetic log builder for tests
 windows/
-  cmd/coinslot/                 entrypoint: run | once | procs | summary
+  cmd/coinslot/                 entrypoint: run | once | procs | summary | inventory
   collector/                    platform-neutral loop behind a Probe interface (tested with a fake)
   internal/win32/               the only Win32 code: foreground, idle, session processes
   scripts/                      install/uninstall scheduled task (PowerShell)

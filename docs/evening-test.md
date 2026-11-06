@@ -6,8 +6,8 @@ during the evening.
 
 ## Before the evening
 
-1. Finish [windows-setup.md](windows-setup.md): process inventory done, `config.json`
-   corrected, `install.ps1` run.
+1. Finish [windows-setup.md](windows-setup.md): `install.ps1` run. The process inventory can be
+   done before, or after the evening from the logs (`inventory`); see §2 there.
 2. Have each kid sign out and back in, then confirm the collector is running (as the kid):
 
    ```powershell
@@ -40,9 +40,16 @@ Things worth deliberately trying once, because they test the edges of the rule:
 - switching users with a game left running (must not count for the other kid);
 - an Among Us discussion/voting round with no typing (expected to under-count; see below).
 
-## After the evening: produce the summaries
+## After the evening: check the config, then produce the summaries
 
-As admin, in PowerShell (replace the account folder names):
+If the inventory wasn't done beforehand, do it now from the logs, and fix `config.json` until
+the games and allowed apps match ([windows-setup.md](windows-setup.md) §2):
+
+```powershell
+& 'C:\Program Files\Coinslot\coinslot.exe' inventory 'C:\Users\kid1\AppData\Local\Coinslot\logs'
+```
+
+Then, as admin, in PowerShell (replace the account folder names):
 
 ```powershell
 $cs = 'C:\Program Files\Coinslot\coinslot.exe'

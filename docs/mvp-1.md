@@ -29,6 +29,8 @@ about 1–2 minutes per hour of play, for both kids.
 - [x] UWP apps resolved through `ApplicationFrameHost.exe`
 - [x] Single instance per session; no console window (`coinslotw.exe`)
 - [x] Diagnostics: `coinslot procs`, `coinslot once`
+- [x] `coinslot inventory`: foreground exes (titles, paths, time) and started processes from logs,
+      so process names can be confirmed after collecting
 - [x] Platform-neutral loop behind `Probe`, tested with a fake probe
 - [x] Win32 probe runs on a real Windows machine (CI `windows-latest` smoke test)
 
@@ -52,6 +54,8 @@ about 1–2 minutes per hour of play, for both kids.
 
 - [x] Packaging script and CI artifact (`coinslot-windows-amd64`)
 - [x] `install.ps1` / `uninstall.ps1`: per-user logon scheduled task ([ADR 0003](adr/0003-per-user-scheduled-task.md))
+- [x] CI install test on Windows: task registration, reinstall keeps config, clean uninstall
+      (`windows/scripts/test-install.ps1`)
 - [x] Setup and inventory guide ([windows-setup.md](windows-setup.md))
 - [x] Evening data collection and comparison guide ([evening-test.md](evening-test.md))
 
@@ -59,6 +63,7 @@ about 1–2 minutes per hour of play, for both kids.
 
 Steps only you can do, in order. Guides: [windows-setup.md](windows-setup.md),
 [evening-test.md](evening-test.md). Tick each item here (or tell an agent to) as you go.
+Planned for Sunday 2026-11-08. Setup is about 10 minutes, then notes during the evening.
 
 ### 6a. Get the build
 
@@ -69,20 +74,7 @@ Steps only you can do, in order. Guides: [windows-setup.md](windows-setup.md),
       `Get-ChildItem <folder> -Recurse | Unblock-File`. If Defender/SmartScreen still blocks
       or quarantines `coinslot.exe`, note it here; signing may become a task.
 
-### 6b. Inventory process names (signed in as each kid, or with them)
-
-- [ ] Roblox: `coinslot.exe -config .\config.json procs` before launching and while in a game;
-      identify the player and launcher/updater exes.
-- [ ] Roblox app home screen: open the app *without* joining a game and run `procs`. Is
-      `RobloxPlayerBeta.exe` running? ([analysis](analysis/2026-11-06-game-state-signals.md#to-verify-on-the-pc))
-- [ ] Minecraft: note the edition (Java or Bedrock) and the player and launcher exes. For Java, note
-      the window title in menus vs in a world (`coinslot.exe ... once` while it's in front).
-- [ ] Duolingo (and any other allowed app): app or browser? Note the exe and window title.
-- [ ] Among Us (optional): player exe.
-- [ ] Edit `config.json` with the confirmed names; delete `note` fields you've confirmed.
-      Send the confirmed names so `config/config.example.json` can be updated.
-
-### 6c. Install
+### 6b. Install (with the example config; names get fixed after the evening)
 
 - [ ] In an admin PowerShell, in the package folder:
       `powershell -ExecutionPolicy Bypass -File .\install.ps1`. Report any error output.
@@ -93,12 +85,29 @@ Steps only you can do, in order. Guides: [windows-setup.md](windows-setup.md),
       `& 'C:\Program Files\Coinslot\coinslot.exe' summary` shows `collector observed` increasing.
 - [ ] Check the PC's clock is correct (your notes are compared against it).
 
-### 6d. Evening test
+### 6c. Evening
 
 - [ ] Keep ground-truth notes for both kids (time, kid, what), per [evening-test.md](evening-test.md).
+      Include when a game was updating/loading and when it was in its menus or home screen.
 - [ ] Try the edge cases once: game updating/loading, walking away >1 min with the game in front,
       alt-tab to Duolingo with the game open, switching users with a game running.
-- [ ] Afterwards, as admin: run `summary` on each kid's log folder.
+- [ ] Roblox app home screen: once, open the Roblox app *without* joining a game for a minute,
+      and note the time. Shows whether the home screen runs as the player exe
+      ([analysis](analysis/2026-11-06-game-state-signals.md#to-verify-on-the-pc)).
+- [ ] Note the Minecraft edition (Java or Bedrock).
+
+### 6d. After the evening: fix the config from the logs
+
+- [ ] As admin: `coinslot.exe inventory <kid's log folder>` for each kid
+      ([windows-setup.md](windows-setup.md) §2).
+- [ ] Confirm the player and launcher exes for Roblox and Minecraft (Duolingo/allowed apps:
+      exe + title), and fix `C:\Program Files\Coinslot\config.json` until `inventory` shows the right matches.
+- [ ] Send the confirmed names (or the `inventory -json` output) so `config/config.example.json`
+      gets updated.
+
+### 6e. Summaries and comparison
+
+- [ ] As admin: run `summary` on each kid's log folder.
 - [ ] Back up both kids' log folders off the PC's profile directories (don't commit them).
 - [ ] Compare summary vs notes per kid per game. Send the differences, the summaries, and
       (optionally) the logs. Results get recorded in `docs/analysis/`.
