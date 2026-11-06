@@ -17,7 +17,9 @@ A second counts as active play only when all hold:
 2. Its window is the foreground window (`GetForegroundWindow` -> process).
 3. Last input (`GetLastInputInfo`) was within the idle threshold (default 30s, configurable).
 
-Optional later: GPU/network activity to filter idle menus.
+MVP assumes keyboard and mouse only. Post-MVP (planned, see `docs/roadmap.md`): controller
+polling via XInput (`pad_idle_s`), and GPU/network activity to filter idle menus.
+Don't build roadmap items until v1's evening test has passed.
 
 Never hard-code process names. They live in config and must be confirmed by
 inventory on the real machine (`coinslot procs`, raw collector logs).

@@ -137,8 +137,8 @@ from `ts` + `dt_s` + `sid` without format changes.
 ## Known gaps (v1)
 
 - **Assumption: input is keyboard and mouse only.** Gamepad input does not update
-  `GetLastInputInfo`, so controller play would look idle. If controllers come into use,
-  add XInput polling to the probe.
+  `GetLastInputInfo`, so controller play would look idle. Controller polling is planned
+  post-MVP; see [roadmap.md](roadmap.md#controller-gamepad-input).
 - Kids can delete or edit their own logs (per-user folder) or kill the collector. Accepted for
   measurement; the hardened service is deferred.
 - Window titles are logged and may include browser page titles. Logs stay local.

@@ -31,6 +31,7 @@ windows/scripts/package.sh   # -> dist/coinslot/: both exes, config.json, instal
 See [docs/design.md](docs/design.md) for the design and record schema,
 [docs/windows-setup.md](docs/windows-setup.md) to install, and
 [docs/evening-test.md](docs/evening-test.md) to collect an evening of data and check it.
+Planned post-MVP work is in [docs/roadmap.md](docs/roadmap.md).
 
 ## License
 
