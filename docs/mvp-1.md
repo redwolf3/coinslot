@@ -50,7 +50,7 @@ about 1–2 minutes per hour of play, for both kids.
 - [x] Minutes in allowed apps
 - [x] `coinslot summary` with text or `-json` output, `-date` and `-idle` options, and log files/dirs as input
 - [x] `coinslot timeline` (same arguments): per-child, per-date segments of identical state with
-      gaps shown, to compare against hand-written notes (PR #TBD)
+      gaps shown, to compare against hand-written notes (PR #5)
 
 ## 5. Run instructions and deployment
 
