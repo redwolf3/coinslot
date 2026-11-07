@@ -9,6 +9,7 @@
 | [analysis/](analysis/) | Research, investigations, data analysis; dated, point-in-time |
 | [guidelines/](guidelines/) | How we work: development workflow, testing, conventions |
 | [windows-setup.md](windows-setup.md) | Operator guide: inventory, install, verify on the PC |
+| [ios-hello-world.md](ios-hello-world.md) | iOS step 0: accounts, Xcode project, Simulator, device, TestFlight (tooling proof) |
 | [evening-test.md](evening-test.md) | Operator guide: v1 acceptance test |
 
 Where things go:

@@ -12,7 +12,8 @@ iOS and a central service later. Language: Go, one module at the repo root
 ### Current scope: v1 = measurement only
 
 - No blocking, no tokens, no time caps, no server. Do not build them.
-- `ios/` and `service/` stay empty placeholders until explicitly started.
+- `ios/` holds only the Hello World tooling proof ([docs/ios-hello-world.md](docs/ios-hello-world.md))
+  until the iOS design is done; `service/` stays an empty placeholder until explicitly started.
 - Goal: reliably measure, per child account, active play time per metered game,
   separate from allowed apps and from time a game is merely open (launcher, download, update).
 - Focus games: Roblox and Minecraft (Among Us is in config but secondary).
@@ -55,6 +56,7 @@ as the change.
 | [docs/analysis/](docs/analysis/) | Research and investigations (e.g. game state signals) | Before researching something again |
 | [docs/guidelines/development.md](docs/guidelines/development.md) | Workflow, testing, schema/config changes, commit style | Before writing code |
 | [docs/windows-setup.md](docs/windows-setup.md) | Inventory, install, verify on the PC | Touching install/packaging |
+| [docs/ios-hello-world.md](docs/ios-hello-world.md) | iOS step 0: tooling proof (Hello World to TestFlight) | Before any iOS work |
 | [docs/evening-test.md](docs/evening-test.md) | v1 acceptance test procedure | Touching the summary or classifier |
 
 ## Architecture rules
