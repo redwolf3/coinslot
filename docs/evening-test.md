@@ -39,8 +39,10 @@ Things worth deliberately trying once, because they test the edges of the rule:
 - alt-tab to Duolingo with the game still open (allowed time, plus game open-not-playing);
 - switching users with a game left running (must not count for the other kid);
 - putting the PC to sleep for a few minutes with a game open, then waking it (the `timeline`
-  should show a `no data` gap with the same `run` id before and after; a collector restart
-  shows a new `run` id instead; see [#6](https://github.com/redwolf3/coinslot/issues/6));
+  should show a `no data` gap covering the sleep; the timeline does not show `run` ids, so
+  check the raw log: the `sample` records before and after the gap should have the same `run`,
+  while a new `run` has a `start` record whose `reason` says why; see
+  [#6](https://github.com/redwolf3/coinslot/issues/6));
 - an Among Us discussion/voting round with no typing (expected to under-count; see below).
 
 ## After the evening: check the config, then produce the summaries
