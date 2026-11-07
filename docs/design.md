@@ -17,10 +17,11 @@ core/
   record/                       JSONL record types (schema v1)
   activity/                     parse logs, replay process state, classify, credit intervals
   summary/                      daily summary per child (date, SID)
+  timeline/                     per-child segments of identical state, for comparing with notes
   inventory/                    foreground exes/titles and started processes from logs (config discovery)
   internal/synth/               synthetic log builder for tests
 windows/
-  cmd/coinslot/                 entrypoint: run | once | procs | summary | inventory
+  cmd/coinslot/                 entrypoint: run | once | procs | summary | timeline | inventory
   collector/                    platform-neutral loop behind a Probe interface (tested with a fake)
   internal/win32/               the only Win32 code: foreground, idle, session processes
   scripts/                      install/uninstall scheduled task (PowerShell)
@@ -114,6 +115,16 @@ more than ~10s. Intervals that cross local midnight are split between the two da
 active time), open-not-playing per game and in total (no double count), allowed per app.
 `coinslot summary` prints it as text or `-json`. With `-date D`, a log directory contributes
 only `D.jsonl`: daily files are self-contained, because a new run starts at local midnight.
+
+**Timeline** per (local date, SID): `coinslot timeline` (same arguments as `summary`) lists
+consecutive stretches of identical state as segments, built from the same `activity.Replay`
+intervals. A segment starts at the interval end minus its credited seconds. Adjacent
+intervals merge when they are in the same run and agree on active app, allowed app, open
+apps, present/idle and foreground exe. A new run, or time no interval covers (credit capped
+after sleep or a stall, the time between two runs), starts a new segment; uncovered time over
+1s is printed as a `(no data, …)` line. The first sample of a run credits 0 and gets no
+segment. `idle` covers both idle and a switched-away session; the summary does not
+distinguish them either. `-json` emits the segments with their start and end times.
 
 ## Records (JSONL, schema v1)
 

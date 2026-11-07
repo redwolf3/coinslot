@@ -59,6 +59,23 @@ $cs = 'C:\Program Files\Coinslot\coinslot.exe'
 
 If the evening ran past midnight, drop `-date` (it prints every day in the folder).
 
+`timeline` takes the same arguments and prints what happened when, as stretches of one state,
+to hold against your notes:
+
+```powershell
+& $cs timeline -date (Get-Date -Format yyyy-MM-dd) 'C:\Users\kid1\AppData\Local\Coinslot\logs'
+```
+
+```
+2026-11-06  PC\kid1  (S-1-5-21-1001)
+  18:02:05–18:05:10  roblox       open, not playing (RobloxPlayerInstaller.exe in front)
+  18:05:10–18:31:40  roblox       ACTIVE
+  18:31:40–18:36:00  roblox       open, not playing (idle)
+  18:36:00–18:50:00  duolingo     allowed   [roblox open]
+```
+
+`(no data, …)` lines are time the collector did not observe (sleep, restart, not running).
+
 Also copy both log folders somewhere safe (or send them to me). With the raw logs, a
 config fix can be re-run against the same evening without collecting again:
 
@@ -77,6 +94,11 @@ For each kid and game, compare:
 | `allowed apps` | minutes in Duolingo etc. with the kid actually using it |
 | `collector observed` | roughly the time the kid was signed in |
 
+Walk the `timeline` next to your notes, row by row. For each of your note times, check the
+segment covering it says the same thing. A disagreement of more than the idle threshold
+(30s) at a boundary, or a different state, is a finding. The summary tells you how big the
+error is; the timeline tells you where it comes from.
+
 Rough expectations: active play within a minute or two per hour of play (5-second samples
 plus the 30-second idle cut-off). Big misses usually mean:
 
@@ -86,8 +108,8 @@ plus the 30-second idle cut-off). Big misses usually mean:
   `Select-String RobloxPlayer <log> | Select-Object -Last 3`.
 - **Active too low during quiet game phases** → idle threshold too strict for that game.
   Re-run with `summary -idle 60` and compare. That changes only the report, not the logs.
-- **Gaps** (observed much lower than signed-in time) → the collector wasn't running. Look
-  for `start` records (`Select-String '"type":"start"' <log>`). Each one is a collector start.
+- **Gaps** (observed much lower than signed-in time) → the collector wasn't running. The
+  `timeline` shows them as `(no data, …)` lines. Look for `start` records (`Select-String '"type":"start"' <log>`). Each one is a collector start.
 - **Time on the wrong kid** → should not happen. Send me the logs.
 
 Write down the per-game differences (summary minus notes). That table is the acceptance

@@ -22,6 +22,26 @@
   That Windows job is the only automated check of the Win32 code.
 - Ask the owner before a large design change; record the outcome as an ADR.
 
+## Pull request process
+
+1. Commit small, `<area>: <what changed>`. Before each commit run the four checks above, then
+   push the branch.
+2. Open a PR (title = the future squash subject), request a GitHub Copilot review, and
+   subscribe to PR activity.
+3. Check every Copilot finding against the code and decide:
+   - objective, meaningful and in scope: fix it, with a test that fails without the fix. For
+     repeated findings on the same mechanism, fix the root cause instead of each symptom;
+   - valid but out of scope: file a GitHub issue. Weigh findings by their impact on the MVP
+     evening test; a rare edge case (unusual timing, pid reuse, races) is out of scope;
+   - invalid: explain why, with proof.
+   Reply on every review thread with the disposition and the commit or proof, then resolve it.
+   A finding with no thread (in the review body) gets one PR comment.
+4. Re-request a Copilot review only after pushing changes. At most 5 rounds.
+5. Merge (squash and merge) only when Copilot reports no open issues and CI (`test`, `windows`)
+   is green on the head commit. A "needs a closer look" verdict, findings left after round 5,
+   or code changes no review has seen mean: stop and report status to the owner.
+6. After merging, unsubscribe from PR activity and cancel any scheduled check-ins.
+
 ## Where code goes
 
 | Change | Location | Test with |
