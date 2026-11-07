@@ -92,7 +92,8 @@ Planned for Sunday 2026-11-08. Setup is about 10 minutes, then notes during the 
 - [ ] Keep ground-truth notes for both kids (time, kid, what), per [evening-test.md](evening-test.md).
       Include when a game was updating/loading and when it was in its menus or home screen.
 - [ ] Try the edge cases once: game updating/loading, walking away >1 min with the game in front,
-      alt-tab to Duolingo with the game open, switching users with a game running.
+      alt-tab to Duolingo with the game open, switching users with a game running, and
+      sleeping the PC for a few minutes with a game open (note the sleep and wake times).
 - [ ] Roblox app home screen: once, open the Roblox app *without* joining a game for a minute,
       and note the time. Shows whether the home screen runs as the player exe
       ([analysis](analysis/2026-11-06-game-state-signals.md#to-verify-on-the-pc)).
@@ -120,6 +121,8 @@ Planned for Sunday 2026-11-08. Setup is about 10 minutes, then notes during the 
       Owner approved the merge; owner's own review of #1 is still pending.
 - [x] Follow-up #2: `summary -date` reads only that day's log file (PR #4)
 - [ ] Follow-up #3: stricter title matching, once the evening's real titles are known
+- [ ] Follow-up #6: label `timeline` gaps (same run = sleep or stall, new run = collector restart) and
+      handle gaps across midnight, once the evening shows whether it is needed
 - [ ] Agent: apply fixes from validation (config example, idle threshold, bugs)
 - [ ] Agent: re-tick section 6 items as confirmed; record the evening-test result in `docs/analysis/`
 - [ ] Owner: review and merge the post-validation PR
