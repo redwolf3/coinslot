@@ -1,2 +1,50 @@
+# Language / Build Artifacts
+
+# Go / Windows build output
 dist/
 *.exe
+
+# IDEs and Editors
+
+# IntelliJ / GoLand / JetBrains
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+.history/
+
+# Microsoft Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.vcxproj.user
+*.VC.db
+*.VC.VC.opendb
+*.ncb
+*.sdf
+*.opensdf
+ipch/
+[Bb]in/
+[Oo]bj/
+
+# Eclipse
+.classpath
+.project
+.settings/
+.metadata/
+.recommenders/
+*.launch
+*.pydevproject
+.loadpath
+
+# Local-Only Working Files
+
+# Local notes and AI working documents (not for GitHub)
+.scratch/
