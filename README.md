@@ -14,7 +14,7 @@ pure core turns them into a daily summary per child. No blocking, budgets, or to
 
 | Path        | What                                                         |
 |-------------|--------------------------------------------------------------|
-| `core/`     | Platform-independent logic: config, record schema, classifier, active-play counter, daily summary |
+| `core/`     | Platform-independent logic: config, record schema, classifier, active-play counter, daily summary, timeline |
 | `windows/`  | Windows collector (`coinslot.exe` / `coinslotw.exe`), Win32 probe, packaging and install scripts |
 | `config/`   | Example config mapping process names to metered/allowed, player/launcher |
 | `docs/`     | Design, roadmap, ADRs, analysis, guidelines, operator guides (index: `docs/README.md`) |

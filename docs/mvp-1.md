@@ -49,6 +49,8 @@ about 1–2 minutes per hour of play, for both kids.
 - [x] Minutes open but not playing, per game and in total (no double count)
 - [x] Minutes in allowed apps
 - [x] `coinslot summary` with text or `-json` output, `-date` and `-idle` options, and log files/dirs as input
+- [x] `coinslot timeline` (same arguments): per-child, per-date segments of identical state with
+      gaps shown, to compare against hand-written notes (PR #5)
 
 ## 5. Run instructions and deployment
 
@@ -107,9 +109,9 @@ Planned for Sunday 2026-11-08. Setup is about 10 minutes, then notes during the 
 
 ### 6e. Summaries and comparison
 
-- [ ] As admin: run `summary` on each kid's log folder.
+- [ ] As admin: run `summary` and `timeline` on each kid's log folder.
 - [ ] Back up both kids' log folders off the PC's profile directories (don't commit them).
-- [ ] Compare summary vs notes per kid per game. Send the differences, the summaries, and
+- [ ] Compare summary and timeline vs notes per kid per game. Send the differences, the summaries, and
       (optionally) the logs. Results get recorded in `docs/analysis/`.
 
 ## 7. Release

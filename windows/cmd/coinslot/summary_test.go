@@ -11,6 +11,7 @@ import (
 
 	"github.com/redwolf3/coinslot/core/config"
 	"github.com/redwolf3/coinslot/core/summary"
+	"github.com/redwolf3/coinslot/core/timeline"
 	"github.com/redwolf3/coinslot/windows/collector"
 )
 
@@ -88,6 +89,47 @@ func TestCollectorToSummary(t *testing.T) {
 	if !strings.Contains(out.String(), "ACTIVE PLAY") {
 		t.Fatalf("text output:\n%s", out.String())
 	}
+	// The timeline of the same log: allowed 2 min, active 3 min, then 1 min idle in the game.
+	out.Reset()
+	if err := timelineCmd([]string{"-json", logDir}, cfgPath, logDir, &out, &errb); err != nil {
+		t.Fatalf("%v: %s", err, errb.String())
+	}
+	var tl []timeline.Day
+	if err := json.Unmarshal(out.Bytes(), &tl); err != nil {
+		t.Fatal(err)
+	}
+	if len(tl) != 1 || len(tl[0].Segments) != 3 {
+		t.Fatalf("timeline: %s", out.String())
+	}
+	for i, want := range []struct {
+		allowed, active string
+		open            []string
+		present         bool
+		min             float64
+	}{
+		{"duolingo", "", nil, true, 2},
+		{"", "roblox", nil, true, 3},
+		{"", "", []string{"roblox"}, false, 1},
+	} {
+		s := tl[0].Segments[i]
+		if s.Allowed != want.allowed || s.Active != want.active || strings.Join(s.Open, ",") != strings.Join(want.open, ",") ||
+			s.Present != want.present || s.End.Sub(s.Start).Minutes() != want.min {
+			t.Fatalf("segment %d = %+v, want %+v", i, s, want)
+		}
+	}
+	if i := tl[0].Segments; !i[0].End.Equal(i[1].Start) || !i[1].End.Equal(i[2].Start) {
+		t.Fatalf("segments are not contiguous: %+v", i)
+	}
+	out.Reset()
+	if err := timelineCmd([]string{logDir}, cfgPath, logDir, &out, &errb); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"duolingo     allowed", "roblox       ACTIVE", "open, not playing (idle)"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("timeline text missing %q:\n%s", want, out.String())
+		}
+	}
+
 	out.Reset()
 	if err := inventoryCmd([]string{logDir}, cfgPath, logDir, &out, &errb); err != nil {
 		t.Fatal(err)
@@ -285,6 +327,31 @@ func TestSummaryDateReadsOnlyThatDaysFile(t *testing.T) {
 
 	var out, errb bytes.Buffer
 	if err := summaryCmd([]string{"-date", "2026-11-*", sc.logDir}, sc.cfg, sc.logDir, &out, &errb); err == nil {
+		t.Fatal("malformed -date must be rejected")
+	}
+}
+
+// timeline takes the same -date as summary: a directory contributes only that day's file.
+func TestTimelineDateReadsOnlyThatDaysFile(t *testing.T) {
+	sc := newTitled(t, "Minecraft", time.Date(2026, 11, 6, 18, 0, 0, 0, time.Local))
+	sc.probe.procs = []collector.Proc{{PID: 9, Exe: "javaw.exe"}}
+	sc.probe.fg = collector.Foreground{PID: 9, Exe: "javaw.exe", Title: "Minecraft 1.21.4"}
+	for day := 6; day <= 7; day++ {
+		sc.now = time.Date(2026, 11, day, 18, 0, 0, 0, time.Local)
+		sc.tick(13)
+	}
+	var out, errb bytes.Buffer
+	if err := timelineCmd([]string{"-json", "-date", "2026-11-07", sc.logDir}, sc.cfg, sc.logDir, &out, &errb); err != nil {
+		t.Fatal(err)
+	}
+	var tl []timeline.Day
+	if err := json.Unmarshal(out.Bytes(), &tl); err != nil {
+		t.Fatal(err)
+	}
+	if len(tl) != 1 || tl[0].Date != "2026-11-07" {
+		t.Fatalf("timeline: %s", out.String())
+	}
+	if err := timelineCmd([]string{"-date", "bogus", sc.logDir}, sc.cfg, sc.logDir, &out, &errb); err == nil {
 		t.Fatal("malformed -date must be rejected")
 	}
 }
