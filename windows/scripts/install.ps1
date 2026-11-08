@@ -21,8 +21,16 @@ $running = @(Get-Process -Name coinslot, coinslotw -ErrorAction SilentlyContinue
 $running | Stop-Process -Force
 $running | Wait-Process -Timeout 10 -ErrorAction SilentlyContinue
 
+# A just-killed exe can stay locked for a moment (Defender scan, image teardown), so retry.
+function Invoke-WithRetry([scriptblock]$Action, [int]$Tries = 20, [int]$DelayMs = 250) {
+    for ($i = 1; ; $i++) {
+        try { & $Action; return }
+        catch { if ($i -ge $Tries) { throw }; Start-Sleep -Milliseconds $DelayMs }
+    }
+}
+
 New-Item -ItemType Directory -Force -Path $Dest | Out-Null
-Copy-Item (Join-Path $src 'coinslot.exe'), (Join-Path $src 'coinslotw.exe') $Dest -Force
+Invoke-WithRetry { Copy-Item (Join-Path $src 'coinslot.exe'), (Join-Path $src 'coinslotw.exe') $Dest -Force -ErrorAction Stop }
 $cfg = Join-Path $Dest 'config.json'
 if ($OverwriteConfig -or -not (Test-Path $cfg)) {
     Copy-Item (Join-Path $src 'config.json') $cfg -Force

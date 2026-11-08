@@ -11,5 +11,12 @@ Unregister-ScheduledTask -TaskName 'Collector' -TaskPath '\Coinslot\' -Confirm:$
 $running = @(Get-Process -Name coinslot, coinslotw -ErrorAction SilentlyContinue)
 $running | Stop-Process -Force
 $running | Wait-Process -Timeout 10 -ErrorAction SilentlyContinue
-if (Test-Path $Dest) { Remove-Item -Recurse -Force $Dest }
+# A just-killed exe can stay locked for a moment (Defender scan, image teardown), so retry.
+function Invoke-WithRetry([scriptblock]$Action, [int]$Tries = 20, [int]$DelayMs = 250) {
+    for ($i = 1; ; $i++) {
+        try { & $Action; return }
+        catch { if ($i -ge $Tries) { throw }; Start-Sleep -Milliseconds $DelayMs }
+    }
+}
+Invoke-WithRetry { if (Test-Path $Dest) { Remove-Item -Recurse -Force $Dest -ErrorAction Stop } }
 Write-Host "Uninstalled. Logs remain in each user's %LOCALAPPDATA%\Coinslot\logs."
