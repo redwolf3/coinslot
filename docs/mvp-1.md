@@ -70,7 +70,7 @@ Planned for Sunday 2026-11-08. Setup is about 10 minutes, then notes during the 
 ### 6a. Get the build
 
 - [ ] Download `coinslot-windows-amd64` from the latest successful CI run (GitHub → Actions →
-      `ci` → latest successful run on `main` → Artifacts; requires being signed in to GitHub) and extract it.
+      `ci` → latest *green* run on `main` → Artifacts; requires being signed in to GitHub) and extract it.
       Alternative: install Go and Git Bash, then run `windows/scripts/package.sh`.
 - [ ] Unblock the extracted files. They are unsigned and downloaded, so Windows marks them:
       `Get-ChildItem <folder> -Recurse | Unblock-File`. If Defender/SmartScreen still blocks
@@ -120,6 +120,8 @@ Planned for Sunday 2026-11-08. Setup is about 10 minutes, then notes during the 
 - [x] Base work merged to `main`: PR #1, after 5 Copilot review rounds (10 findings fixed).
       Owner approved the merge; owner's own review of #1 is still pending.
 - [x] Follow-up #2: `summary -date` reads only that day's log file (PR #4)
+- [x] Install/uninstall retry file operations when a just-stopped exe is still locked (flaky CI
+      reinstall step)
 - [ ] Follow-up #3: stricter title matching, once the evening's real titles are known
 - [ ] Follow-up #6: label `timeline` gaps (same run = sleep or stall; new run = restart, date
       rollover or write recovery, per its `start.reason`) and handle gaps across midnight, once
